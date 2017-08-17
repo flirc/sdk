@@ -1,0 +1,25 @@
+#!/usr/bin/awk -f
+
+# status output
+/^\[[^\]]+\]/ {
+	match($0, /^\[[^\]]+\]/);
+	title = substr($0, RSTART+1, RLENGTH-2);
+	sub(/^\[[^\]]+\]/, "[\033[32m" title "\033[0m]");
+}
+
+#error
+/: error: / {
+	print "\033[31m" $0 "\033[0m";
+	next;
+}
+
+#warning
+/: warning: / {
+	print "\033[33m" $0 "\033[0m";
+	next;
+}
+
+# default
+{
+	print $0;
+}

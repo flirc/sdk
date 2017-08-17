@@ -1,0 +1,21 @@
+#!/bin/bash
+
+if [ -f "$1" ]; then
+	echo "Stripping white space from '$1'"
+	sed -i '' -E -e 's/[ 	]+$//g' "$1"
+else
+	find . -type f -and \( \
+			-name '*.c' -or \
+			-name '*.cpp' -or \
+			-name '*.m' -or \
+			-name '*.h' -or \
+			-iname '*.s' -or \
+			-name '*.py' -or \
+			-name '*.txt' -or \
+			-name '*.mk' -or \
+			-iname 'makefile' \) | \
+		while read fn;
+	do
+		sed -i '' -E -e 's/[ 	]+$//g' $fn
+	done
+fi

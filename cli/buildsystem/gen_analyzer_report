@@ -1,0 +1,41 @@
+#!/bin/bash
+
+RESULTSDIR=$1
+RESULTOUTPUT=static_analysis_report.html
+
+if [ ! -d "$RESULTSDIR" ]; then
+	echo "Invalid results directory"
+	exit 1
+fi
+
+cd "$RESULTSDIR"
+
+# output header
+cat > "$RESULTOUTPUT" << EOF
+<html>
+<head>
+<title>Static Analysis Results</title>
+</head>
+<body>
+<b>Results Directory:</b> $RESULTSDIR <br />
+<br />
+<ul>
+EOF
+
+find . -type d -name '*.analyze' | while read adir; do
+echo "<li>${adir##./}" >> "$RESULTOUTPUT"
+echo "<ul>" >> "$RESULTOUTPUT"
+find "$adir" -type f -name '*.html' | while read fn; do
+echo "<li><a href=\"${fn}\">$(basename ${fn})</a></li>" >> "$RESULTOUTPUT"
+done
+echo "</ul></li>" >> "$RESULTOUTPUT"
+done
+
+# output footer
+cat >> "$RESULTOUTPUT" << EOF
+</ul>
+<br />
+<i>$(date)</i>
+</body>
+</html>
+EOF

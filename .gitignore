@@ -1,0 +1,6 @@
+*.d
+*o
+*.swp
+*.tmp
+cscope.out
+buildresults/*
