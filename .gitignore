@@ -4,3 +4,5 @@
 *.tmp
 cscope.out
 buildresults/*
+tags
+.DS_Store
