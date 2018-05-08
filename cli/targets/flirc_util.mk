@@ -26,6 +26,8 @@ endif
 include buildsystem/git.mk
 OPTIONS += SCMVERSION='"$(SCMVERSION)"'
 OPTIONS += SCMBRANCH='"$(SCMBRANCH)"'
+OPTIONS += SCMVER='"$(SCMVER)"'
+OPTIONS += SCMVERSION='"$(SCMVERSION)"'
 CPPFLAGS += -DBUILD_DATE='"$(shell date)"'
 
 # Release Config

@@ -1,5 +1,5 @@
 /**
- * COPYRIGHT 2012 Flirc, Inc. All rights reserved.
+ * COPYRIGHT 2018 Flirc, Inc. All rights reserved.
  *
  * This copyright notice is Copyright Management Information under 17 USC 1202
  * and is included to protect this work and deter copyright infringement.
@@ -22,11 +22,12 @@
 #include <prjutil.h>
 #include <cmds.h>
 #include <logging.h>
+#include <version_history.h>
 
 #include <timelib.h>
+#include <hexdump.h>
 
-static inline int
-enough_args(int arguments, int amount_expected)
+static inline int enough_args(int arguments, int amount_expected)
 {
 	if (!((arguments) >= amount_expected)) {
 		logerror("Not Enough Arguments\n");
@@ -35,6 +36,79 @@ enough_args(int arguments, int amount_expected)
 
 	return 0;
 }
+
+CMDHANDLER(version)
+{
+	int state;
+	uint8_t major;
+	uint8_t minor;
+	int patch;
+	uint32_t fw_scm_hash;
+	const char *dirty;
+	const char *branch;
+	const char *config;
+	const char *skuu;
+
+
+	printf("flirc_util version %s [%s]\n",
+			SCMVER,
+			SCMVERSION);
+
+	if ((state = fl_fw_state()) < 0)  {
+		return argc;
+	}
+
+	major = fl_major_version();
+	minor = fl_minor_version();
+	patch = fl_patch_version();
+
+	dirty = fl_fw_dirty();
+	branch = fl_fw_branch();
+	config = fl_fw_config();
+
+	if ((dirty = fl_fw_dirty()) == NULL) {
+		dirty = "";
+	}
+
+	if (patch < 0) {
+		/* print patch if we have hardware that supports it */
+		patch = 0;
+	}
+
+	fw_scm_hash = fl_fw_scm_hash();
+
+	if (state == FIRMWARE) {
+		printf(" Firmware Detected\n");
+	} else if (state == BOOTLOADER) {
+		printf(" Booloader Detected\n");
+	}
+
+	printf(" Version: v%d.%d.%d%s\n", major, minor, patch, dirty);
+
+	if ((skuu = fl_get_sku()) != NULL) {
+		printf("    SKU:     %s\n", skuu);
+	}
+
+	if ((branch = fl_fw_branch()) != NULL) {
+		printf("    Branch:  %s\n", branch);
+	}
+
+	if ((config = fl_fw_config()) != NULL) {
+		printf("    Config:  %s\n", config);
+	}
+
+	if ((fw_scm_hash = fl_fw_scm_hash()) > 0) {
+		printf("    Hash:    0x%08X\n", fw_scm_hash);
+	}
+
+	return argc;
+}
+
+APPCMD(version, &version,
+		"Print the application version and device version if connected",
+		"usage: version [history]\n"
+		" history     shows the history log",
+		NULL);
 
 CMDHANDLER(waet)
 {
@@ -67,6 +141,7 @@ CMDHANDLER(record)
 	return argc;
 }
 
+
 APPCMD(record, &record,
 		"Record infrared buttons and link them to HID keys",
 		"usage: \n"
@@ -86,6 +161,143 @@ APPCMD(record, &record,
 		"  suspend\n",
 		NULL);
 
+CMDHANDLER(record_lp)
+{
+	int rq;
+
+	if (enough_args(argc, 1) < 0) {
+		run_cmd_line("help record_lp", NULL);
+		return argc;
+	}
+
+	printf(" Press any button on the remote to link it with '%s'\n\n",
+			argv[0]);
+
+	rq = fl_set_record_lp(argv[0], 100);
+
+	switch (rq) {
+	case (-ERR_KEY_NOT_FOUND):
+		printf("Error: You must first record this remote button with"
+				" the regular flirc_util record command.\n"
+				"Example:\n"
+				" flirc_util record `<first function>`\n"
+				" flirc_util record_lp %s\n", argv[0]);
+		break;
+	case (-ERR_BUTTON_EXISTS):
+		printf("Error: Long press already assigned to that button\n");
+		break;
+	case (-EWRONGDEV):
+		printf("Error: Current device does not support this feature\n");
+		break;
+	case (EOK):
+		printf("  Succesfully recorded button\n\n");
+		break;
+	default:
+		printf("Error: Unable to pair key\n");
+		break;
+	}
+
+	return argc;
+}
+
+APPCMD(record_lp, &record_lp,
+"Record a long pres key",
+"\n"
+"This will record a secondary function to an already recorded remote control \n"
+"button. Once a button is converted to a long press button, a short press of \n"
+"that button will send out the first function, and holding down the button \n"
+"for half a second will send out the second function.\n"
+"\n"
+"You will need to record a regular key with the 'flirc_util record' "
+"command first.\n"
+"The examples below assume you are pressing the same button on your remote.\n"
+"\n"
+"Example 1; Send out 'up' arrrow on short press, 'vol up' when held down for\n"
+"half a second: \n"
+"  flirc_util record up\n"
+"  flirc_util record_lp vol_up\n"
+"valid commands:\n"
+"  a-z <any single letter>\n"
+"  return, enter, escape, backspace, delete, tab, \n"
+"  space, F[1-12], printscreen, scroll, pause, insert, \n"
+"  home, pageup, pagedown, end, right, left, down, up, \n"
+"Media Keys: \n"
+"  wake, eject, vol_up, vol_down, mute, play/pause, stop \n"
+"  rewind, fast_forward, next_track, prev_track \n"
+"System Keys: \n"
+"  suspend\n",
+NULL);
+
+CMDHANDLER(record_macro)
+{
+	int rq;
+
+	if (enough_args(argc, 1) < 0) {
+		run_cmd_line("help record_macro", NULL);
+		return argc;
+	}
+
+	printf(" Press any button on the remote to link it with '%s'\n\n",
+			argv[0]);
+
+	rq = fl_set_record_macro(argv[0], 100);
+
+	switch (rq) {
+	case (-ERR_KEY_NOT_FOUND):
+		printf("Error: You must first record this remote button with"
+				" the regular flirc_util record command.\n"
+				"Example:\n"
+				" flirc_util record `<first function>`\n"
+				" flirc_util record_macro %s\n", argv[0]);
+		break;
+	case (-EWRONGDEV):
+		printf("Error: Current device does not support this feature\n");
+		break;
+	case (EOK):
+		printf("  Succesfully recorded button\n\n");
+		break;
+	default:
+		printf("Error: Unable to pair key\n");
+		break;
+	}
+
+	return argc;
+}
+
+APPCMD(record_macro, &record_macro,
+"Record a macro key",
+"\n"
+"This will record a secondary function to an already recorded remote control \n"
+"button. Keep using this command to keep adding functions to the same remote \n"
+"control button. For example, to send out a series of commands on a single \n"
+"button press, first use the flirc_util record command with the first key \n"
+"then convert the button to a macro with this command. You can also combine \n"
+"long presses and macros together by first converting a key to a long \n"
+"press, and then recording macros. See the below for examples:\n"
+"Example 1; Create a macro that sounds out the text 'hello':\n"
+"  flirc_util record h\n"
+"  flirc_util record_macro e\n"
+"  flirc_util record_macro l\n"
+"  flirc_util record_macro l\n"
+"  flirc_util record_macro o\n"
+"Example 2; Create a long press. Sends out 'up arrow' on short press, 'hello'\n"
+"if held down for half a second:\n"
+"  flirc_util record h\n"
+"  flirc_util record_lp e\n"
+"  flirc_util record_macro l\n"
+"  flirc_util record_macro l\n"
+"  flirc_util record_macro o\n"
+"  a-z <any single letter>\n"
+"  return, enter, escape, backspace, delete, tab, \n"
+"  space, F[1-12], printscreen, scroll, pause, insert, \n"
+"  home, pageup, pagedown, end, right, left, down, up, \n"
+"Media Keys: \n"
+"  wake, eject, vol_up, vol_down, mute, play/pause, stop \n"
+"  rewind, fast_forward, next_track, prev_track \n"
+"System Keys: \n"
+"  suspend\n",
+NULL);
+
 CMDHANDLER(record_api)
 {
 	if (enough_args(argc, 2) < 0) {
@@ -93,13 +305,22 @@ CMDHANDLER(record_api)
 		return argc;
 	}
 
+	if (argc > 2) {
+		if (fl_set_record_api_new(atoi(argv[0]), atoi(argv[1]),
+					atoi(argv[2]), 100) == EOK) {
+			printf("  Succesfully recorded button\n\n");
+			return 3;
+		}
+	}
+
 	printf("hit a key on the remote to be paired with %d %d\n",
 			atoi(argv[0]), atoi(argv[1]));
 
-	if (fl_set_record_api(atoi(argv[0]), atoi(argv[1]), 100) == EOK)
+	if (fl_set_record_api(RM_NORMAL,
+				atoi(argv[0]), atoi(argv[1]), 100) == EOK)
 		printf("  Succesfully recorded button\n\n");
 
-	return argc;
+	return 2;
 }
 
 APPCMD(record_api, &record_api,
@@ -183,6 +404,9 @@ APPCMD(normal, &normal,
 
 CMDHANDLER(saveconfig)
 {
+#ifdef CONFIG_DEBUG
+	struct timeval s;
+#endif
 	char file_name[300];
 
 	if (enough_args(argc, 1) < 0) {
@@ -194,8 +418,16 @@ CMDHANDLER(saveconfig)
 
 	printf("\nSaving Configuration File '%s' to Disk\n", file_name);
 
-	if (fl_save_config(file_name) == EOK)
+#ifdef CONFIG_DEBUG
+	gettimeofday(&s, NULL);
+#endif
+	if (fl_save_config(file_name) == EOK) {
 		printf("\n\nConfiguration File saved\n\n");
+#ifdef CONFIG_DEBUG
+		printf("\n\nTook %d ms\n\n",
+				(int)time_elapsed_us(&s)/(1000));
+#endif
+	}
 
 	return argc;
 }
@@ -278,6 +510,18 @@ CMDHANDLER(dfu)
 		else
 			printf("Done!\n");
 
+		/* Delay to fix race condition and close devices */
+		delay_ms(500);
+		fl_close_device();
+		/* Uploaded Firmware, now wait for device */
+		if (fl_wait_for_device(0x20A0, "flirc.tv") == FIRMWARE) {
+			fl_set_boot_flag();
+			printf("[DEVICE]        EOK\n");
+			return 1;
+		} else {
+			printf("[DEVICE]        Failed\n");
+			return 1;
+		}
 	} else {
 		printf("Error: invalid dfu option\n");
 		run_cmd_line("help dfu", NULL);
@@ -292,7 +536,7 @@ APPCMD(dfu, &dfu,
 		"  dfu\n"
 		"example: \n"
 		"  flirc dfu \n"
-		"  flirc dfu --leave",
+		"  flirc dfu leave",
 		NULL);
 
 CMDHANDLER(upgrade)
@@ -502,7 +746,6 @@ CMDHANDLER(seq_modifiers)
 		printf("unrecognized option\n");
 		run_cmd_line("help sequence_modifiers", NULL);
 	}
-
 
 	return argc;
 }
@@ -767,18 +1010,24 @@ APPCMD(normalize_cfg, &normalize_cfg,
 		"  normalize_cfg \n",
 		NULL);
 
-
 CMDHANDLER(device_log)
 {
 	struct timeval s;
 	gettimeofday(&s, NULL);
 	uint8_t persist = 0;
 
+	if (dict_has_key(opts, "ir")) {
+		printf("Note - Enabling IR debugging\n");
+		fl_set_debug_pipe(0, 1);
+	} else {
+		/* disable debug logging */
+		fl_set_debug_pipe(0, 0);
+	}
 
-	if (argc > 0) {
-		if (strcmp(argv[0], "persistance") == 0) {
-			persist = 1;
-		}
+	if (dict_has_key(opts, "persistance")) {
+		printf("Note - Entering persistance mode\n");
+		printf("Press Ctrl+C to exit\n");
+		persist = 1;
 	}
 
 	do {
@@ -790,14 +1039,19 @@ CMDHANDLER(device_log)
 	return argc;
 }
 
-APPCMD(device_log, &device_log,
+START_CMD_OPTS(device_log_opts)
+	CMD_OPT(ir, 'i', "ir", "enable ir debugging")
+	CMD_OPT(persistance, 'p', "persistance", "keep polling device")
+END_CMD_OPTS;
+
+APPCMD_OPT(device_log, &device_log,
 		"Displays the log on the device",
 		"usage: \n"
 		"  device_log <persistance>\n"
 		"  - persistance mode optional\n"
 		"  - this command clears the log on the device\n",
-		NULL);
-#if 0
+		NULL, device_log_opts);
+
 CMDHANDLER(rom_table)
 {
 	uint8_t table_id;
@@ -834,7 +1088,7 @@ CMDHANDLER(rom_table)
 		return 2;
 	}
 
-	fl_enable_rom_table(atoi(argv[0]), atoi(argv[1]));
+	fl_enable_rom_table(table_id, enable);
 	return argc;
 }
 
@@ -847,4 +1101,51 @@ APPCMD(rom_table, &rom_table,
 		"  kodi\n"
 		"  streacom\n",
 		NULL);
-#endif
+
+CMDHANDLER(unit_test)
+{
+	if (fl_major_version() < 4) {
+		printf("Self test not supported\n");
+	}
+
+	if (fl_format_config() < 0) {
+		printf("Flirc Fucked\n");
+	}
+
+	if (fl_unit_test() == EOK) {
+		printf("Flirc Okay\n");
+	} else {
+		printf("Flirc Not Okay\n");
+	}
+
+	if (fl_format_config() < 0) {
+		printf("Flirc Not Okay\n");
+	}
+
+	return argc;
+}
+
+APPCMD(unit_test, &unit_test,
+		"test flirc",
+		"Options:\n"
+		"  none\n",
+		NULL);
+
+CMDHANDLER(sku)
+{
+	char *skuu;
+
+	if ((skuu = fl_get_sku()) == NULL) {
+		printf("  product sku:      NA\n");
+	} else {
+		printf("  product sku:      %s\n", skuu);
+	}
+
+	return 1;
+}
+
+APPCMD(sku, &sku,
+		"Print the sku of the device",
+		"usage: \n"
+		"  sku <no args>\n",
+		NULL);

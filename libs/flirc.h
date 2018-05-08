@@ -1,5 +1,5 @@
 /**
- * COPYRIGHT 2014 Flirc, Inc. All rights reserved.
+ * COPYRIGHT 2018 Flirc, Inc. All rights reserved.
  *
  * This copyright notice is Copyright Management Information under 17 USC 1202
  * and is included to protect this work and deter copyright infringement.
@@ -23,6 +23,9 @@ extern "C" {
 #endif /* __cpluspuls */
 
 #ifdef BUILD_DLL
+#ifdef _DLL
+#undef _DLL
+#endif
 #define _DLL __declspec(dllexport)
 #else
 #define _DLL
@@ -41,7 +44,7 @@ struct fw_ver_hist {
 	/* summary string */
 	const char *s;
 	/* pointer to list node */
-	struct list_head node;
+	ll_t node;
 };
 
 /**
@@ -52,7 +55,7 @@ struct fw_ver_hist {
  *
  * @return      BOOTLOADER   - Bootloader found and opend
  * @return      FIRMWARE     - Succesfully opened firmware
- * @return	-UNKNOWN_DEV - Device found, but unknown	
+ * @return	-UNKNOWN_DEV - Device found, but unknown
  * @return      -ENXIO       - No such device or address
  */
 int _DLL fl_open_device(unsigned int VID, const char *mf);
@@ -193,6 +196,42 @@ char _DLL *fl_version_str(void);
 uint32_t _DLL fl_fw_scm_hash(void);
 
 /**
+ * fl_fw_branch() returns the firmware build branch
+ *
+ * This function requires no arguments.
+ *
+ * @return      char *        - build branch
+ * @return      -ENODEV       - Flirc not present
+ * @return	-EWRONGDEV    - Unsupported, device in bootloader
+ * @return	-LIBUSB_ERROR - bad mode selected.
+ */
+char _DLL *fl_fw_branch(void);
+
+/**
+ * fl_fw_config() returns the firmware configuration string
+ *
+ * This function requires no arguments.
+ *
+ * @return      char *        - build configuration
+ * @return      -ENODEV       - Flirc not present
+ * @return	-EWRONGDEV    - Unsupported, device in bootloader
+ * @return	-LIBUSB_ERROR - bad mode selected.
+ */
+char _DLL *fl_fw_config(void);
+
+/**
+ * fl_fw_dirty() returns a string that represents the extended version dirty tag
+ *
+ * This function requires no arguments.
+ *
+ * @return      char *        - tag string
+ * @return      -ENODEV       - Flirc not present
+ * @return	-EWRONGDEV    - Unsupported, device in bootloader
+ * @return	-LIBUSB_ERROR - bad mode selected.
+ */
+char _DLL *fl_fw_dirty(void);
+
+/**
  * fl_leave_bootloader() forces the bootloader to jump to the main image.
  * 			 Normally, when a firmware image is uploaded, the device
  * 			 will jump to the newly upgraded image automatically,
@@ -321,6 +360,9 @@ int _DLL fl_set_delete(int wait);
  */
 int _DLL fl_set_record(const char *key, int wait);
 
+#define RM_NORMAL	0
+#define RM_MACRO	1
+#define RM_LONG_PRESS	2
 /**
  * fl_set_record_api() this function calls the same USB command as setRecord,
  * 		       but there is no translation layer. For example, in both
@@ -352,7 +394,85 @@ int _DLL fl_set_record(const char *key, int wait);
  * @return	-ERR_BUTTON_EXISTS - Record Failed, button exists
  * @return      -LIBUSBERR	   - LIBUSB error code
  */
-int _DLL fl_set_record_api(int modifier, int key, int wait);
+int _DLL fl_set_record_api(int mode, int modifier, int key, int wait);
+
+/**
+ * fl_set_record_api_new() this function calls the same USB command as
+ * setRecord. Raw record api for new version of the hardware. No table
+ * translation.
+ *
+ * @param rep  - Report ID
+ * @param mod  - KEY0 - Usually Modifier
+ * @param key  - KEY1 -
+ * @param wait - Timeout in seconds. If zero is given (DONT_WAIT), the function
+ * 		 becomes non-blocking, and will not put the device back in normal
+ * 		 playback mode.
+ *
+ * @return      EOK		   - Completed Succesfully
+ * @return      -ETIMEOUT          - Time out reached
+ * @return      -ENODEV		   - Flirc not present
+ * @return      -EWRONGDEV	   - Unsupported, device in bootloader
+ * @return	-ERR_NO_SPACE	   - Record Failed, no space left
+ * @return	-ERR_BUTTON_EXISTS - Record Failed, button exists
+ * @return      -LIBUSBERR	   - LIBUSB error code
+ */
+int _DLL fl_set_record_api_new(int report_id, int modifier, int key, int wait);
+
+/**
+ * fl_set_record_lp() will assign a second hid function to the same remote
+ * control button press. The second key will be sent out after half a second
+ * of holding down the button.
+ *
+ * @param key  - Either a character or string.
+ * @param wait - Timeout in seconds. If zero is given (DONT_WAIT), the function
+ * 		 becomes non-blocking, and will not put the device back in
+ * 		 normal playback mode.
+ *
+ * Example Keys:
+ * 			Example:  'h'
+ *
+ * Example Key Strings:
+ *  			escape, return, enter, backspace, delete, tab,
+ *  			space, F[1-12], printscreen, scroll, pause, insert
+ *  			home, pageup, pagedown, end, right, left, down, up, wake
+ *
+ * @return      EOK		   - Completed Succesfully
+ * @return      -ETIMEOUT          - Time out reached
+ * @return      -ENODEV		   - Flirc not present
+ * @return      -EWRONGDEV	   - Unsupported, device in bootloader
+ * @return      -ERR_NO_SPACE	   - No space is left on the device
+ * @return      -ERR_KEY_NOT_FOUND - First record the key using the std record
+ * @return      -LIBUSBERR	   - LIBUSB error code
+ */
+int _DLL fl_set_record_lp(const char *key, int wait);
+
+/**
+ * fl_set_record_macro() will record another hid key to the same remote control
+ * button as a macro. All keys assigned to a single remote control press
+ * will be sent out sequentially.
+ *
+ * @param key  - Either a character or string.
+ * @param wait - Timeout in seconds. If zero is given (DONT_WAIT), the function
+ * 		 becomes non-blocking, and will not put the device back in
+ * 		 normal playback mode.
+ *
+ * Example Keys:
+ * 			Example:  'h'
+ *
+ * Example Key Strings:
+ *  			escape, return, enter, backspace, delete, tab,
+ *  			space, F[1-12], printscreen, scroll, pause, insert
+ *  			home, pageup, pagedown, end, right, left, down, up, wake
+ *
+ * @return      EOK		   - Completed Succesfully
+ * @return      -ETIMEOUT          - Time out reached
+ * @return      -ENODEV		   - Flirc not present
+ * @return      -EWRONGDEV	   - Unsupported, device in bootloader
+ * @return      -ERR_NO_SPACE	   - No space is left on the device
+ * @return      -ERR_KEY_NOT_FOUND - First record the key using the std record
+ * @return      -LIBUSBERR	   - LIBUSB error code
+ */
+int _DLL fl_set_record_macro(const char *key, int wait);
 
 /**
  * fl_set_normal() Puts flirc into normal mode. In normal operation, flirc sends
@@ -801,6 +921,28 @@ int _DLL fl_normalize_config(void);
  */
 int _DLL fl_transmit_raw(uint16_t *buf, uint16_t len);
 
+/**
+ * fl_unit_test() perform a closed loop test
+ *
+ * @param 	- none
+ *
+ * @return	EOK
+ * @return	-1 error
+ */
+int _DLL fl_unit_test(void);
+
+/**
+ * fl_last_hash() grab the last hash seen, doesn't have to be in the database
+ *
+ * @param 	- none
+ *
+ * @return	hash		- 32 bit unique button hash
+ * @return	-ENODEV		- Flirc not present
+ * @return	-LIBUSBERR	- LIBUSB error code
+ * @return	-EWRONGDEV	- Unsupported, device in bootloader
+ */
+int _DLL fl_last_hash(void);
+
 enum sensitivity {
 	low_sens=0,
 	med_sens=1,
@@ -843,7 +985,7 @@ enum sensitivity {
 #define ERR_KEY_NOT_FOUND	6
 #endif
 
-typedef enum error_t{
+typedef enum fl_types_t {
         EOK = 0,
 	STATE_PLAYBACK = 0,
 	STATE_RECORD = 1,
