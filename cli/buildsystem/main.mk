@@ -38,9 +38,11 @@ LDFLAGS += $(addprefix -framework ,$(FRAMEWORKS))
 endif
 
 # Compile fixes for raspberry pi and 32 bit machine
+ifneq ($(MARCH),armv6l)
 ifneq ($(MARCH),armv7l)
 ifneq ($(MARCH),i686)
 CFLAGS += -m64 -mtune=native
+endif
 endif
 endif
 
