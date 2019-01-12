@@ -1,5 +1,5 @@
 /**
- * COPYRIGHT 2018 Flirc, Inc. All rights reserved.
+ * COPYRIGHT 2019 Flirc, Inc. All rights reserved.
  *
  * This copyright notice is Copyright Management Information under 17 USC 1202
  * and is included to protect this work and deter copyright infringement.
@@ -602,9 +602,14 @@ CMDHANDLER(noise_canceler)
 {
 	int enabled;
 
+	if (fl_major_version() >= 4) {
+		printf("  noise canceler:   %s\n", "always enabled");
+		return argc;
+	}
+
 	if (argc < 1) {
 		if ((enabled = fl_get_noise_cancel()) >= 0) {
-			printf("  noise canceler:   %s\n", enabled ?
+			printf("  noise canceler:    %s\n", enabled ?
 				"Enabled" : "Disabled");
 		} else {
 			printf("  noise canceler:   NA\n");
@@ -681,6 +686,11 @@ CMDHANDLER(interkey_delay)
 {
 	int enabled;
 
+	if (fl_major_version() >= 4) {
+		printf("  inter-key delay:  %s\n", "N/A for current firmware");
+		return argc;
+	}
+
 	if (argc < 1) {
 		if ((enabled = fl_get_interkey_delay()) >= 0) {
 			printf("  inter-key delay:  %d\n", enabled);
@@ -714,6 +724,11 @@ APPCMD(interkey_delay, &interkey_delay,
 CMDHANDLER(seq_modifiers)
 {
 	int enabled;
+
+	if (fl_major_version() >= 4) {
+		printf("  seq. modifiers:   %s\n", "always enabled\n");
+		return argc;
+	}
 
 	if (argc < 1) {
 		if ((enabled = fl_get_sequence_modifiers()) >= 0) {
@@ -889,6 +904,11 @@ APPCMD(dump, &dump,
 CMDHANDLER(sleep_detect)
 {
 	int enabled;
+
+	if (fl_major_version() >= 4) {
+		printf("  sleep detection:  %s\n", "always enabled");
+		return argc;
+	}
 
 	if (argc < 1) {
 		if ((enabled = fl_get_sleep_detect()) >= 0) {
