@@ -11,6 +11,11 @@ This should be used as an exmaple to interface with flirc.
 Please see ../lib/flirc.h for provided API functions. Further
 documentation will be provided shortly.
 
+For windows installation, please make sure mingw is installed
+and in the path. Please use the 32 bit version, to ensure 
+compatibility with 64 bit systems. To complie for windows:
+
+    $ make HOSTOS=win
 
 -----------
 Buildsystem

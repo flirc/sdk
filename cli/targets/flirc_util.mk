@@ -18,6 +18,8 @@ LIBRARIES := readline flirc usb-1.0
 
 ifeq ($(HOSTOS),LINUX)
 LIBRARIES += hidapi-hidraw
+else ifeq ($(HOSTOS),win)
+LIBRARIES += hidapi ncurses
 else
 LIBRARIES += hidapi
 endif

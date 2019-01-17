@@ -1,7 +1,7 @@
 include buildsystem/func.mk
 
 # Host OS
-export HOSTOS := $(call TOUPPER,$(call USCORESUB,$(shell uname -s)))
+export HOSTOS ?= $(call TOUPPER,$(call USCORESUB,$(shell uname -s)))
 
 # Verbose Option
 ifeq ($(VERBOSE),1)
@@ -16,6 +16,10 @@ endif
 export MACHINE := $(call USCORESUB,$(shell uname -sm))
 export CCNAME := $(call USCORESUB,$(notdir $(realpath $(shell which $(CC)))))
 export MARCH   := $(shell uname -m)
+
+ifeq ($(HOSTOS), win)
+CCNAME := mingw
+endif
 
 # Build Directory
 export BUILDDIR_ROOT := buildresults

@@ -4,6 +4,21 @@ include buildsystem/func.mk
 CPPFLAGS := -Iinclude -Isrc -I../libs/
 CFLAGS := -Wall -Werror 
 
+ifeq ($(HOSTOS),win)
+CC		:= i686-w64-mingw32.static-gcc
+CCP		:= i686-w64-mingw32.static-g++
+WINRES		:= i686-w64-mingw32.static-windres
+MAKENSIS	:= i686-w64-mingw32.static-makensis
+CXXFLAGS 	+= -D__HOST_WIN__
+CFLAGS		+= -D__HOST_WIN__
+LIBS_STATIC	+= hidapi usb-1.0
+LIBS_STATIC	+= hid setupapi
+LSEARCH		:= -L../libs/Win/
+
+# Fixes packing issue
+CFLAGS		+= -mno-ms-bitfields
+endif
+
 CXXFLAGS = $(CFLAGS)
 ASFLAGS :=
 LDFLAGS :=
@@ -31,6 +46,10 @@ include $(TARGETMK)
 # Add all the libraries defined in config.mk to LDLIBS
 LDLIBS := $(addprefix -l,$(LIBRARIES))
 LSEARCH := -L../libs/$(MACHINE)/
+ifeq ($(HOSTOS), win)
+LSEARCH := -L../libs/Win/
+LSEARCH += -L../../build/mxe/usr/i686-w64-mingw32.static/lib/
+endif
 
 # Add all the frameworks defined in config.mk to LDFLAGS (This is only for OSX)
 ifeq ($(HOSTOS),DARWIN)
@@ -41,7 +60,9 @@ endif
 ifneq ($(MARCH),armv6l)
 ifneq ($(MARCH),armv7l)
 ifneq ($(MARCH),i686)
+ifneq ($(HOSTOS),win)
 CFLAGS += -m64 -mtune=native
+endif
 endif
 endif
 endif
