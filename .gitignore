@@ -2,7 +2,7 @@
 *o
 *.swp
 *.tmp
-cscope.out
+cscope.*
 buildresults/*
 tags
 .DS_Store

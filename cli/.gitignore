@@ -1,4 +1,4 @@
 *.swp
 *.tmp
-cscope.out
+cscope.*
 buildresults/*
