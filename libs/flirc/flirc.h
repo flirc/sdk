@@ -1,5 +1,5 @@
 /**
- * COPYRIGHT 2018 Flirc, Inc. All rights reserved.
+ * COPYRIGHT 2019 Flirc, Inc. All rights reserved.
  *
  * This copyright notice is Copyright Management Information under 17 USC 1202
  * and is included to protect this work and deter copyright infringement.
@@ -12,8 +12,8 @@
  */
 
 #include <stdint.h>
-#include <stdio.h>
 #include <ll.h>
+#include <stddef.h>
 
 #ifndef I__FLIRC_H__
 	#define I__FLIRC_H__
@@ -276,15 +276,32 @@ int _DLL fl_reboot(void);
 int _DLL fl_wait_for_device(unsigned int VID, const char *manufacturer);
 
 /**
+ * fl_wait_for_device_timout() waits for flirc to be present in the system, and then
+ * 			opens the device. Will fail after timeout has passed.
+ * 			Otherwise, is identical to above.
+ *
+ * @param VID     - USB Vendor ID
+ * @param char *  - manufacture string
+ * @param timeout - timeout in seconds
+ *
+ * @return      BOOTLOADER   - Bootloader found and opend
+ * @return      FIRMWARE     - Succesfully opened firmware
+ * @return      -ENXIO       - No such device or address
+ * @return      -ETIMEOUT    - Time out reached
+ */
+int _DLL fl_wait_for_device_timeout(unsigned int VID,
+		const char *manufacturer, int timeout);
+
+/**
  * fl_upgrade_fw() all in one upgrader function. Will wait for a device to be
  *                 present, if present, this will automatically set the device
  *                 in DFU mode (if not alraedy), wait for the device to
  *                 reappear and upload the file sent to the function.
  *
  * @param user_file - location of firmware image
- * @param VID	    - USB Vendor ID
- * @param *man	    - manufacturer string
- * @param *priv	    - container for C++ class, progress bar
+ * @param VID       - USB Vendor ID
+ * @param *man      - manufacturer string
+ * @param *priv     - container for C++ class, progress bar
  * @param *p_bar    - function pointer to progress bar
  *
  * @return      EOK	      - Success
@@ -293,6 +310,25 @@ int _DLL fl_wait_for_device(unsigned int VID, const char *manufacturer);
 int _DLL fl_upgrade_fw(const char *user_file, unsigned int VID,
 		const char *manufacturer, void *priv,
 		void (*p_bar)(int perc, void *priv));
+
+/**
+ * fl_upgrade_fw_timeout() all in one upgrader function. When waiting for device
+ *                 to appear, will fail after timeout has passed. Otherwise, is
+ *                 identical to above.
+ *
+ * @param user_file - location of firmware image
+ * @param VID       - USB Vendor ID
+ * @param *man      - manufacturer string
+ * @param *priv     - container for C++ class, progress bar
+ * @param *p_bar    - function pointer to progress bar
+ * @param timeout   - timeout in seconds
+ *
+ * @return      EOK	      - Success
+ * @return      -EUPGRADE_FAIL - Upgrade failed
+ */
+int _DLL fl_upgrade_fw_timeout(const char *user_file, unsigned int VID,
+		const char *manufacturer, void *priv,
+		void (*p_bar)(int perc, void *priv), int timeout);
 
 /**
  * fl_upgrade_fw_ext() all in one upgrader function. Uses a buffer instead of a
@@ -310,6 +346,25 @@ int _DLL fl_upgrade_fw(const char *user_file, unsigned int VID,
 int _DLL fl_upgrade_fw_ext(unsigned char *buf, size_t len, int VID,
 		const char *manufacturer, void *priv,
 		void (*p_bar)(int perc, void *priv));
+
+/**
+ * fl_upgrade_fw_ext_timeout() all in one upgrader function. When waiting for
+ *                 device to appear, will fail after timeout has passed.
+ *                 Otherwise, is identical to above.
+ *
+ * @param buff    - image buffer
+ * @param VID     - USB Vendor ID
+ * @param *man    - manufacturer string
+ * @param *priv   - container for C++ class, progress bar
+ * @param *p_bar  - function pointer to progress bar
+ * @param timeout - timeout in seconds
+ *
+ * @return      EOK	      - Success
+ * @return      -EUPGRADE_FAIL - Upgrade failed
+ */
+int _DLL fl_upgrade_fw_ext_timeout(unsigned char *buf, size_t len, int VID,
+		const char *manufacturer, void *priv,
+		void (*p_bar)(int perc, void *priv), int timeout);
 
 /**
  * fl_set_delete() puts flirc into delete mode. When calling this function, the
@@ -508,6 +563,25 @@ int _DLL fl_set_normal(void);
 int _DLL fl_set_interrupt(int timeout);
 
 /**
+ * fl_record_toggle() will record the toggle button. Will allow flirc to be
+ * disabled or enabled by recorded key.
+ *
+ * @param wait - Timeout in seconds. If zero is given (DONT_WAIT), the function
+ * 		 becomes non-blocking, and will not put the device back in
+ * 		 normal playback mode.
+ *
+ *
+ * @return      EOK		   - Completed Succesfully
+ * @return      -ETIMEOUT          - Time out reached
+ * @return      -ENODEV		   - Flirc not present
+ * @return      -EWRONGDEV	   - Unsupported, device in bootloader
+ * @return      -ERR_NO_SPACE	   - No space is left on the device
+ * @return      -ERR_KEY_NOT_FOUND - First record the key using the std record
+ * @return      -LIBUSBERR	   - LIBUSB error code
+ */
+int _DLL fl_record_toggle(int wait);
+
+/**
  * fl_delete_buttons() deletes multiple buttons if they exist from the device.
  *
  * @param  key	- the key to remove
@@ -565,6 +639,13 @@ int _DLL fl_set_sensitivity(int val);
  * @return	-LIBUSBERR	   - LIBUSB error code
  */
 int _DLL fl_get_sensitivity(void);
+
+enum sensitivity {
+	low_sens=0,
+	med_sens=1,
+	def_sens=2,
+	hig_sens=3,
+};
 
 /**
  * fl_set_interkey_delay() Sets the interkey delay. This will help with button
@@ -915,11 +996,15 @@ int _DLL fl_normalize_config(void);
  * 			micro seconds
  * @param	len	length of buffer, don't send more than 100 bits, must be
  * 			even number of bits (edges).
+ * @param	ik	delay to use inbetween packets. Required.
+ * 			Defaults to 40ms if to low.
+ * @param	repeat	repeat count, generally should be 3, 0 is infinit until
+ * 			stopped, currently not supported.
  *
  * @return	EOK
  * @return	-1 error
  */
-int _DLL fl_transmit_raw(uint16_t *buf, uint16_t len);
+int _DLL fl_transmit_raw(uint16_t *buf, uint16_t len, uint16_t ik, uint8_t repeat);
 
 /**
  * fl_unit_test() perform a closed loop test
@@ -943,12 +1028,93 @@ int _DLL fl_unit_test(void);
  */
 int _DLL fl_last_hash(void);
 
-enum sensitivity {
-	low_sens=0,
-	med_sens=1,
-	def_sens=2,
-	hig_sens=3,
-};
+typedef enum {
+    IOSPIRIT = 0,
+} usb_iface_type;
+
+/**
+ * fl_usb_iface_en() enable or disable a specific usb interface
+ *
+ * @param 	usb_iface_type	- See enums below
+ * @param	en		- enable or disable
+ *
+ * @return	EOK
+ * @return	-ENODEV		   - Flirc not present
+ * @return	-LIBUSBERR	   - LIBUSB error code
+ */
+int _DLL fl_usb_iface_en(usb_iface_type type, uint8_t en);
+
+/**
+ * fl_ir_transmit_kill() will stop the transmitter from transmission
+ *
+ * @param 	none
+ *
+ * @return	EOK
+ * @return	-ENODEV		   - Flirc not present
+ * @return	-EWRONGDEV	- Unsupported, device in bootloader
+ */
+int _DLL fl_ir_transmit_kill(void);
+
+/**
+ * fl_rb_settings_set() settings for remote buddy configuration. To enable
+ * remote wakeup, bit0 in wake_en must be cleared. For an apple remote to
+ * wake the machine, the wake_en feature must be enabled. The high_add and
+ * low_add are apple remote address filters. These address are used to determine
+ * which apple remote can send the remote wake command. For example, if low_add
+ * is set to 0, and high_add is set to 1, then apple remotes with addresses 0
+ * and 1 will wake up the computer. If high_add is equal to 0, and low_add is
+ * equal to 0, then all buttons from apple remote address 0 will wake up the
+ * machine. 
+ *
+ * Flirc can wake the machine from a single button within an apple remote as
+ * well. In order to use this feature, use the api xxxx which allows the
+ * specificiation of any IR signal, which is not limited to apple remotes.
+ *
+ * If the timing of a button is specified, this will override the address
+ * filter. To remove the specified button, see the xxxx api.
+ *
+ * @param 	wake_en		- enable or disable, Bit: 0
+ * @param	high_add	- Apple Remote ADDR high
+ * @param	low_add 	- Apple Remote ADDR low
+ *
+ * @return	EOK
+ * @return	-ENODEV		- Flirc not present
+ * @return	-EWRONGDEV	- Unsupported, device in bootloader
+ */
+int _DLL fl_rb_settings_set(uint32_t wake_en,
+		uint8_t high_add, uint8_t low_add);
+
+/**
+ * fl_rb_settings_get() grab the settings on the device. Variables passed
+ * by reference.
+ *
+ * @param 	wake_en		- enable or disable, Bit: 0
+ * @param	high_add	- Apple Remote ADDR high
+ * @param	low_add 	- Apple Remote ADDR low
+ *
+ * @return	EOK
+ * @return	-ENODEV		- Flirc not present
+ * @return	-EWRONGDEV	- Unsupported, device in bootloader
+ */
+int _DLL fl_rb_settings_get(uint32_t *wake_en,
+		uint8_t *high_add, uint8_t *low_add);
+
+/**
+ * fl_rb_wake_sig() send a buffer to the device, which is the raw timing
+ * waveform of the signal which will be used to wake the computer. To remove
+ * a saved key, send any buffer with length equal to 1, which is invalid.
+ *
+ * @param 	buf 	data to transmit, please be responsible, numbers are in
+ * 			micro seconds
+ * @param	len	length of buffer, don't send more than 100 bits, must be
+ * 			even number of bits (edges).
+ *
+ * @return	EOK
+ * @return	-ENODEV		- Flirc not present
+ * @return	-EWRONGDEV	- Unsupported, device in bootloader
+ */
+int _DLL fl_rb_wake_sig(uint16_t *buf, uint8_t len);
+
 
 /** \ingroup desc
  * Erorr codes.

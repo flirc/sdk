@@ -14,18 +14,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <libgen.h>
-#include <sys/types.h>
 
-#include <ll.h>
-#include <flirc.h>
-#include <prjutil.h>
+#include <flirc/flirc.h>
 #include <cmds.h>
 #include <logging.h>
-#include <version_history.h>
 
 #include <timelib.h>
-#include <hexdump.h>
 
 static inline int enough_args(int arguments, int amount_expected)
 {
@@ -83,7 +77,7 @@ CMDHANDLER(version)
 		printf(" Booloader Detected\n");
 	}
 
-	printf(" Version: v%d.%d.%d%s\n", major, minor, patch, dirty);
+	printf(" FW Version: v%d.%d.%d%s\n", major, minor, patch, dirty);
 
 	if ((skuu = fl_get_sku()) != NULL) {
 		printf("    SKU:     %s\n", skuu);
@@ -101,7 +95,7 @@ CMDHANDLER(version)
 		printf("    Hash:    0x%08X\n", fw_scm_hash);
 	}
 
-	return argc;
+	return 0;
 }
 
 APPCMD(version, &version,
@@ -114,7 +108,7 @@ CMDHANDLER(waet)
 {
 	fl_wait_for_device(0x20A0, "flirc.tv");
 
-	return argc;
+	return 0;
 }
 
 APPCMD(wait, &waet,
@@ -127,18 +121,34 @@ CMDHANDLER(record)
 {
 	if (enough_args(argc, 1) < 0) {
 		run_cmd_line("help record", NULL);
-		return argc;
+		return 0;
 	}
 
 	printf(" Press any button on the remote to link it with '%s'\n\n",
 			argv[0]);
+
+	if (strcmp(argv[0], "toggle") == 0) {
+
+		if (fl_major_version() >= 4 && fl_minor_version() >= 6) {
+			if (fl_record_toggle(100) == EOK) {
+				printf("  Succesfully recorded button\n\n");
+			} else {
+				printf("Error, button exists\n");
+			}
+		} else {
+			printf("  Supported on gen2, v4.6 or higher\n");
+		}
+
+		return 1;
+	}
+
 
 	if (fl_set_record(argv[0], 100) == EOK)
 		printf("  Succesfully recorded button\n\n");
 	else
 		printf("Error, button exists\n");
 
-	return argc;
+	return 1;
 }
 
 
@@ -158,7 +168,9 @@ APPCMD(record, &record,
 		"  wake, eject, vol_up, vol_down, mute, play/pause, stop \n"
 		"  rewind, fast_forward, next_track, prev_track \n"
 		"System Keys: \n"
-		"  suspend\n",
+		"  suspend\n"
+		"Other: \n"
+		"  toggle [enbables/disables] flirc\n",
 		NULL);
 
 CMDHANDLER(record_lp)
@@ -261,7 +273,7 @@ CMDHANDLER(record_macro)
 		break;
 	}
 
-	return argc;
+	return 1;
 }
 
 APPCMD(record_macro, &record_macro,
@@ -303,6 +315,20 @@ CMDHANDLER(record_api)
 	if (enough_args(argc, 2) < 0) {
 		run_cmd_line("help record_api", NULL);
 		return argc;
+	}
+
+
+	if (strtol(argv[0], NULL, 16) == 2) {
+		printf("Consumer Usage Table: 0x%X\n",
+				(int) strtol(argv[1], NULL, 16));
+		if (fl_set_record_api_new(
+				strtol(argv[0], NULL, 16),
+				strtol(argv[1], NULL, 16) & 0xFF,
+				strtol(argv[1], NULL, 16) >> 8,
+				100) == EOK) {
+			printf("  Succesfully recorded button\n\n");
+			return 2;
+		}
 	}
 
 	if (argc > 2) {
@@ -375,7 +401,7 @@ CMDHANDLER(delete)
 	if (fl_set_delete(WAIT) == EOK)
 		printf("  Button Deleted Successfully\n\n");
 
-	return argc;
+	return 0;
 }
 
 APPCMD(delete, &delete,
@@ -391,7 +417,7 @@ CMDHANDLER(normal)
 	if (fl_set_normal() == EOK)
 		printf("Succesfully set device to normal operation\n");
 
-	return argc;
+	return 0;
 }
 
 APPCMD(normal, &normal,
@@ -429,7 +455,7 @@ CMDHANDLER(saveconfig)
 #endif
 	}
 
-	return argc;
+	return 1;
 }
 
 APPCMD(saveconfig, &saveconfig,
@@ -452,7 +478,7 @@ CMDHANDLER(loadconfig)
 	if (fl_load_config(argv[0]) == EOK)
 		printf("\n\nConfiguration File Loaded Successfully\n\n");
 
-	return argc;
+	return 1;
 }
 
 APPCMD(loadconfig, &loadconfig,
@@ -525,9 +551,8 @@ CMDHANDLER(dfu)
 	} else {
 		printf("Error: invalid dfu option\n");
 		run_cmd_line("help dfu", NULL);
+		return 1;
 	}
-
-	return argc;
 }
 
 APPCMD(dfu, &dfu,
@@ -544,6 +569,7 @@ CMDHANDLER(upgrade)
 	const char *imageLocation = NULL;
 	int VID = 0;
 	const char *manufacturer = NULL;
+	int timeout = -1; // optional timeout
 
 	if (enough_args(argc, 1) < 0) {
 		run_cmd_line("help upgrade", NULL);
@@ -566,25 +592,33 @@ CMDHANDLER(upgrade)
 			printf("Error, upload failed\n");
 		}
 
-		return argc;
+		return 1;
 
 	} else if (argc == 3) {
-		imageLocation = argv[0];
-		manufacturer = argv[1];
-		VID = strtol(argv[2], NULL, 16);
+		if (strcmp(argv[1], "timeout") == 0) {
+			timeout = atoi(argv[2]);
+
+			imageLocation = argv[0];
+			VID = 0x20A0;
+			manufacturer = "flirc.tv";
+		} else {
+			imageLocation = argv[0];
+			manufacturer = argv[1];
+			VID = strtol(argv[2], NULL, 16);
+		}
 
 		printf("Uploading image: %s to \"%s\" 0x%X\n",
 			imageLocation,
 			manufacturer,
 			VID);
 
-		if (fl_upgrade_fw(imageLocation, VID, manufacturer,
-					NULL, NULL) < 0) {
+		if (fl_upgrade_fw_timeout(imageLocation, VID, manufacturer,
+					NULL, NULL, timeout) < 0) {
 
 			fl_leave_bootloader();
 		}
 
-		return argc;
+		return 3;
 	}
 
 	return argc;
@@ -593,9 +627,10 @@ CMDHANDLER(upgrade)
 APPCMD(upgrade, &upgrade,
 		"Uploads new firmware image to flirc hardware",
 		"usage: \n"
-		"  flirc upgrade <path to firmware file>"
+		"  flirc upgrade <path to firmware file> [timeout <seconds>]\n"
 		"example:\n"
-		"  flirc loadconfig ~/Desktop/flirc.bin",
+		"  flirc upgrade ~/Desktop/flirc.bin\n"
+		"  flirc upgrade ~/Desktop/flirc.bin timeout 3",
 		NULL);
 
 CMDHANDLER(noise_canceler)
@@ -720,187 +755,6 @@ APPCMD(interkey_delay, &interkey_delay,
 		"  interkey_delay 3\n",
 		NULL);
 
-
-CMDHANDLER(seq_modifiers)
-{
-	int enabled;
-
-	if (fl_major_version() >= 4) {
-		printf("  seq. modifiers:   %s\n", "always enabled\n");
-		return argc;
-	}
-
-	if (argc < 1) {
-		if ((enabled = fl_get_sequence_modifiers()) >= 0) {
-			printf("  seq. modifiers:   %s\n", enabled ?
-				"Enabled" : "Disabled");
-		} else {
-			printf("  seq. modifiers:   NA\n");
-		}
-
-		return 0;
-	}
-
-	if (strcmp(argv[0], "enable") == 0) {
-		printf("enabling sequencing modifiers\n");
-		fl_set_sequence_modifiers(1);
-		return 2;
-	} else if (strcmp(argv[0], "en") == 0) {
-		printf("enabling sequencing modifiers\n");
-		fl_set_sequence_modifiers(1);
-		return 2;
-	} else if (strcmp(argv[0], "disable") == 0) {
-		printf("disabling sequencing modifiers\n");
-		fl_set_sequence_modifiers(0);
-		return 2;
-	} else if (strcmp(argv[0], "dis") == 0) {
-		printf("disabling sequencing modifiers\n");
-		fl_set_sequence_modifiers(0);
-		return 2;
-	} else {
-		printf("unrecognized option\n");
-		run_cmd_line("help sequence_modifiers", NULL);
-	}
-
-	return argc;
-}
-
-APPCMD(seq_modifiers, &seq_modifiers,
-		"enable or disable sequencing the modifiers",
-		"Enable this for windows media center\n"
-		"usage: seq_modifiers enable|disable\n"
-		"example: \n"
-		"  seq_modifiers enable\n"
-		"  seq_modifiers disable",
-		NULL);
-
-CMDHANDLER(status)
-{
-	/* useless, need a parser for last record status for correct version */
-//	printf("Current record status: %d\n", fl_set_interrupt(0));
-	printf("Last upgrade attempt: %s\n", fl_last_upgrade_attempt() ?
-			"Error" : "OK");
-	return 0;
-}
-
-APPCMD(status, &status,
-		"Last Flirc Status",
-		"Last Flirc Status",
-		NULL);
-
-CMDHANDLER(peek)
-{
-	if (enough_args(argc, 1) < 0) {
-		run_cmd_line("help peek", NULL);
-		return argc;
-	}
-
-	printf("Reading:\n");
-	printf("    Address: %X Data: %X\n", atoi(argv[0]),
-			fl_eeprom_peek(atoi(argv[0])));
-
-	return 1;
-}
-
-APPCMD(peek, &peek,
-		"Peek EEPROM address",
-		"usage: \n"
-		"  peek 'location'\n"
-		"example: \n"
-		"  peek 5\n"
-		"  Address: 0x05 Data: 0x05",
-		NULL);
-
-CMDHANDLER(space)
-{
-	float remain;
-	float recorded;
-
-	if (fl_fw_state() != FIRMWARE) {
-		printf("  Memory Info:      NA\n");
-		return 0;
-	}
-
-	if ((recorded = fl_keys_recorded()) < 0) {
-		printf("  Memory Info:      NA\n");
-		return 0;
-	}
-
-	if ((remain = fl_keys_remaining()) < 0) {
-		printf("  Memory Info:      NA\n");
-		return 0;
-	}
-
-	printf("\n");
-	printf("Memory Info:\n");
-	printf("  keys recorded:  %d\n", fl_keys_recorded());
-	printf("  keys remaining: %d\n", fl_keys_remaining());
-	printf("  memory used:  %3.0f%%\n", 100*(recorded / remain));
-
-	return argc;
-}
-
-APPCMD(space, &space,
-		"Displays information about the space used and remaining",
-		"usage: \n"
-		"  space\n",
-		NULL);
-
-CMDHANDLER(keys)
-{
-	if (fl_display_config() < 0) {
-		printf("  Records:          NA\n");
-	}
-	return argc;
-}
-
-APPCMD(keys, &keys,
-		"Shows the recorded remote keys and their pairings",
-		"usage: \n"
-		"  keys\n",
-		NULL);
-
-CMDHANDLER(dump)
-{
-	if (enough_args(argc, 1) < 0) {
-		run_cmd_line("help dump", NULL);
-		return argc;
-	}
-
-	printf("Reading:\n");
-	int read_data;
-	int i;
-
-	printf("%04X  ", 0);
-	for (i = 0; i < atoi(argv[0]) + 1; i++) {
-		if (i%16 == 0 && i != 0)
-			printf("\n%04X  ", i);
-		if (i%8 == 0)
-			printf(" ");
-		read_data = fl_eeprom_peek(i);
-
-		if (read_data < 0)
-			goto exit;
-
-		printf("%02X ", fl_eeprom_peek(i));
-	}
-	printf("\n");
-
-
-	return argc;
-exit:
-	printf("Error\n");
-	return argc;
-}
-
-APPCMD(dump, &dump,
-		"Dumps contents of eeprom to console",
-		"usage: \n"
-		"  dump 'size'\n"
-		"example: \n"
-		"  flirc dump 100",
-		NULL);
-
 CMDHANDLER(sleep_detect)
 {
 	int enabled;
@@ -968,6 +822,43 @@ static void print_pid(void)
 	}
 }
 
+static void show_space(void)
+{
+	float remain;
+	float recorded;
+
+	if (fl_fw_state() != FIRMWARE) {
+		printf("  Memory Info:      NA\n");
+		return;
+	}
+
+	if ((recorded = fl_keys_recorded()) < 0) {
+		printf("  Memory Info:      NA\n");
+		return;
+	}
+
+	if ((remain = fl_keys_remaining()) < 0) {
+		printf("  Memory Info:      NA\n");
+		return;
+	}
+
+	printf("\n");
+	printf("Memory Info:\n");
+	printf("  keys recorded:  %d\n", fl_keys_recorded());
+	printf("  keys remaining: %d\n", fl_keys_remaining());
+	printf("  memory used:  %3.0f%%\n", 100*(recorded / remain));
+}
+
+static void show_sku(void)
+{
+	char *skuu;
+	if ((skuu = fl_get_sku()) == NULL) {
+		printf("  product sku:      NA\n");
+	} else {
+		printf("  product sku:      %s\n", skuu);
+	}
+}
+
 CMDHANDLER(settings)
 {
 	run_cmd_line("version", NULL);
@@ -976,12 +867,16 @@ CMDHANDLER(settings)
 	run_cmd_line("sleep_detect", NULL);
 	run_cmd_line("noise_canceler", NULL);
 	run_cmd_line("interkey_delay", NULL);
-	run_cmd_line("seq_modifiers", NULL);
 	print_pid();
 	run_cmd_line("profiles", NULL);
-	run_cmd_line("space", NULL);
-	run_cmd_line("sku", NULL);
-	run_cmd_line("keys", NULL);
+
+	show_space();
+	show_sku();
+
+	if (fl_display_config() < 0) {
+		printf("  Records:          NA\n");
+	}
+
 	return argc;
 }
 
@@ -1014,21 +909,38 @@ static void dump_log(void)
 	}
 }
 
-
-CMDHANDLER(normalize_cfg)
+CMDHANDLER(mode)
 {
-	fl_normalize_config();
+	if (argc < 1) {
+		printf("not enough args\n");
+		printf("argc:%d\n", argc);
+	}
+
+	if (dict_has_key(opts, "iospirit")) {
+		if (strcmp(argv[0], "en") == 0) {
+			printf("enabling iospirit, disabling hid\n");
+			fl_usb_iface_en(IOSPIRIT, 1);
+		} else if (strcmp(argv[0], "dis") == 0) {
+			fl_usb_iface_en(IOSPIRIT, 0);
+			printf("disabling iospirit, enabling hid\n");
+		}
+	} else {
+		printf("Error, button exists\n");
+	}
+
 	return argc;
 }
 
-APPCMD(normalize_cfg, &normalize_cfg,
-		"Normalize configuration on device",
-		"This will go through the configuration and fix interkey\n"
-		"If a device is too sensitive, try this. If you recorded\n"
-		"more than one remote onto flirc, this command will not work\n"
+START_CMD_OPTS(mode_opts)
+	CMD_OPT(iospirit, 'i', "iospirit", "enable/disable iospirit interface")
+END_CMD_OPTS;
+
+APPCMD_OPT(mode, &mode,
+		"Enable or disable a usb mode",
 		"usage: \n"
-		"  normalize_cfg \n",
-		NULL);
+		"  flirc_util mode --iospirit <en/dis>\n"
+		"  - enabling iospirit interface, disables generic interface",
+		NULL, mode_opts);
 
 CMDHANDLER(device_log)
 {
@@ -1142,30 +1054,11 @@ CMDHANDLER(unit_test)
 		printf("Flirc Not Okay\n");
 	}
 
-	return argc;
+	return 0;
 }
 
 APPCMD(unit_test, &unit_test,
-		"test flirc",
+		"Performs a self test",
 		"Options:\n"
 		"  none\n",
-		NULL);
-
-CMDHANDLER(sku)
-{
-	char *skuu;
-
-	if ((skuu = fl_get_sku()) == NULL) {
-		printf("  product sku:      NA\n");
-	} else {
-		printf("  product sku:      %s\n", skuu);
-	}
-
-	return 1;
-}
-
-APPCMD(sku, &sku,
-		"Print the sku of the device",
-		"usage: \n"
-		"  sku <no args>\n",
 		NULL);

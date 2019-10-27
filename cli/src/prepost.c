@@ -34,7 +34,7 @@
 #include "app.h"
 #include <prjutil.h>
 #include <ll.h>
-#include <flirc.h>
+#include <flirc/flirc.h>
 
 int fl_init(struct appdata_priv *priv)
 {

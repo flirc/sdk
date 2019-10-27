@@ -41,7 +41,7 @@
 #include <string.h>
 #include <libgen.h>
 
-#include <flirc.h>
+#include <flirc/flirc.h>
 /*
  * Application Data Structure
  * 	This data structure is passed around to all commands and pre/post
