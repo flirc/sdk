@@ -11,9 +11,9 @@
  * @brief   Flirc Library functions
  */
 
+#include <stddef.h>
 #include <stdint.h>
 #include <ll.h>
-#include <stddef.h>
 
 #ifndef I__FLIRC_H__
 	#define I__FLIRC_H__
@@ -31,6 +31,7 @@ extern "C" {
 #define _DLL
 #endif
 
+#define LIBFLIRC_VERSION		"3.27.7"
 #define BOOTLOADER 			1
 #define FIRMWARE_FLIRC 			2
 #define FIRMWARE 			2 	/* compatibility */
@@ -59,6 +60,20 @@ struct fw_ver_hist {
  * @return      -ENXIO       - No such device or address
  */
 int _DLL fl_open_device(unsigned int VID, const char *mf);
+
+/**
+ * fl_open_device_alt() searches for and opens flirc's alternate
+ * interface used for ir raw capturing.
+ *
+ * @param VID  - USB Vendor ID
+ * @param *mf  - manufacture string
+ *
+ * @return      BOOTLOADER   - Bootloader found and opend
+ * @return      FIRMWARE     - Succesfully opened firmware
+ * @return	-UNKNOWN_DEV - Device found, but unknown
+ * @return      -ENXIO       - No such device or address
+ */
+int _DLL fl_open_device_alt(unsigned int VID, const char *mf);
 
 /**
  * fl_open_device() searches for and opens flirc.
@@ -996,7 +1011,13 @@ int _DLL fl_normalize_config(void);
  * 			micro seconds
  * @param	len	length of buffer, don't send more than 100 bits, must be
  * 			even number of bits (edges).
- * @param	ik	delay to use inbetween packets. Required.
+ * @param	ik	delay to use inbetween packets. On firmware < 4.10.0,
+ *			use microseconds, on >= 4.10.0, use ms. Will
+ *			automatically detect number less than 1000 as ms and
+ *			convert accordingly for lder devices. Similarly, any
+ *			number greater than 1000 will be converted to ms for
+ *			newer devices. An error will be displayed in both cases.
+ *			convert
  * 			Defaults to 40ms if to low.
  * @param	repeat	repeat count, generally should be 3, 0 is infinit until
  * 			stopped, currently not supported.
@@ -1005,6 +1026,20 @@ int _DLL fl_normalize_config(void);
  * @return	-1 error
  */
 int _DLL fl_transmit_raw(uint16_t *buf, uint16_t len, uint16_t ik, uint8_t repeat);
+
+/**
+ * flirc_send_pronto() transmit a pronto encoded buffer. Only supported on gen2
+ * hardware.
+ *
+ * @param	buf	Pointer to the buffer holding the Pronto codes.
+ * @param	length 	The number of elements in the buffer.
+ * @param	rep  The number of times to repeat the transmission.
+ * 
+ * @return An integer representing the status of the operation. A value 
+ * of zero  indicates success, while non-zero values represent 
+ * specific error codes.
+ */
+int _DLL flirc_send_pronto(uint16_t *buf, uint32_t length, uint8_t rep);
 
 /**
  * fl_unit_test() perform a closed loop test
@@ -1045,6 +1080,60 @@ typedef enum {
 int _DLL fl_usb_iface_en(usb_iface_type type, uint8_t en);
 
 /**
+ * struct ir_packet - Represents a single captured IR packet.
+ *
+ * @param buf      - Timing buffer containing the timings (in microseconds) 
+ *                   of the captured IR signal.
+ * @param len      - The actual number of entries populated in 'buf'. 
+ * @param elapsed  - Time (in microseconds) elapsed since the last edge 
+ *                   was captured.
+ */
+struct ir_packet {
+	uint16_t buf[256];
+	uint16_t len;
+	uint16_t elapsed;
+};
+
+/**
+ * fl_ir_packet_poll() - Polls a flirc USB device for a complete IR packet.
+ *
+ * This function checks if the flirc USB device has a complete IR packet ready.
+ * If a frame is available, the 'ir' structure is filled with timing data and 
+ * relevant details. Useful for real-time systems or applications that need to 
+ * regularly check for IR input.
+ *
+ * @param *ir      - Pointer to the ir_packet structure where details of the 
+ *                   captured IR signal will be stored.
+ *
+ * @return         - Returns 0 if no frame is available yet.
+ *                   Returns 1 if a frame is ready and 'ir' has been populated.
+ */
+int _DLL fl_ir_packet_poll(struct ir_packet *ir);
+
+#if 0
+#include <ir/ir.h>
+/**
+ * fl_transmit_prot() - Transmits an IR signal based on the provided protocol 
+ *                      and scancode.
+ *
+ * This function initiates the transmission of an IR signal corresponding to 
+ * the provided protocol and scancode. The signal can be repeated a specified 
+ * number of times.
+ *
+ * @param protocol   - The IR protocol to use for the transmission. Defined 
+ *                     as an enumeration of type rc_proto elsewhere.
+ * @param scancode   - The value or scancode to be transmitted.
+ * @param repeat     - The number of times the signal should repeat. If set to 
+ *                     zero, the function will use the protocol's default repeat 
+ *                     count, typically once.
+ *
+ * @return           - An integer indicating the success or failure of the 
+ *                     transmission. 0 for success and -1 for failure.
+ */
+int fl_transmit_prot(enum rc_proto protocol, uint32_t scancode, uint8_t repeat);
+#endif
+
+/**
  * fl_ir_transmit_kill() will stop the transmitter from transmission
  *
  * @param 	none
@@ -1064,7 +1153,7 @@ int _DLL fl_ir_transmit_kill(void);
  * is set to 0, and high_add is set to 1, then apple remotes with addresses 0
  * and 1 will wake up the computer. If high_add is equal to 0, and low_add is
  * equal to 0, then all buttons from apple remote address 0 will wake up the
- * machine. 
+ * machine.
  *
  * Flirc can wake the machine from a single button within an apple remote as
  * well. In order to use this feature, use the api xxxx which allows the
