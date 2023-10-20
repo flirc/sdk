@@ -49,7 +49,6 @@ endif
 
 # Add all the libraries defined in config.mk to LDLIBS
 LDLIBS := $(addprefix -l,$(LIBRARIES))
-LSEARCH := -L../libs/$(MACHINE)/
 ifeq ($(HOSTOS), win)
 LSEARCH := -L../libs/Win/
 LSEARCH += -L../../build/mxe/usr/i686-w64-mingw32.static/lib/
@@ -57,6 +56,7 @@ endif
 
 # Add all the frameworks defined in config.mk to LDFLAGS (This is only for OSX)
 ifeq ($(HOSTOS),DARWIN)
+LSEARCH := -L../libs/$(MACHINE)/
 LDFLAGS += $(addprefix -framework ,$(FRAMEWORKS))
 endif
 
