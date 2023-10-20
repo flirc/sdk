@@ -8,13 +8,17 @@ SOURCES :=	src/main.c \
 		lib/dict.c \
 		lib/cmds.c \
 		lib/cmds_script.c \
-		lib/cmds_shell.c \
 		src/cmds/version.c \
 		src/cmds/flirc_cmds.c \
 		src/cmds/ir_transmit.c \
 
 # Libraries
-LIBRARIES := readline flirc usb-1.0
+LIBRARIES := flirc usb-1.0
+
+ifeq ($(ISHELL), 1)
+LIBRARIES += readline
+SOURCES   += lib/cmds_shell.c
+endif
 
 ifeq ($(HOSTOS),LINUX)
 LIBRARIES += hidapi-hidraw

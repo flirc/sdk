@@ -44,6 +44,8 @@ help :
 	@echo "       make all"
 	@echo "       make clean"
 	@echo "other options:"
+	@echo "       ISHELL	 setting this to 1 enables interactive shell"
+	@echo "                  support"
 	@echo "       VERBOSE    setting this to 1 enables verbose output"
 	@echo "       INSTALL    setting this to 1 runs the install script for"
 	@echo "                  each goal specified"
