@@ -22,6 +22,8 @@ endif
 
 ifeq ($(HOSTOS),LINUX)
 LIBRARIES += hidapi-hidraw
+else ifeq ($(HOSTOS),LIBREELEC)
+LIBRARIES += hidapi-hidraw
 else ifeq ($(HOSTOS),win)
 LIBRARIES += hidapi ncurses
 else
