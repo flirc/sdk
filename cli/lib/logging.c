@@ -40,7 +40,7 @@
 extern void _nslog_hook(const char *fmt, va_list ap);
 #endif
 
-FILE *logfds[MAX_LOGLEVEL + 1];
+static FILE *logfds[MAX_LOGLEVEL + 1];
 
 static int loglevel = min_of(DEFAULT_LOGLEVEL, MAX_LOGLEVEL);
 

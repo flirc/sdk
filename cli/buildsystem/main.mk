@@ -56,14 +56,12 @@ ifeq ($(HOSTOS),DARWIN)
 LDFLAGS += $(addprefix -framework ,$(FRAMEWORKS))
 endif
 
-# Compile fixes for raspberry pi and 32 bit machine
-ifneq ($(MARCH),armv6l)
-ifneq ($(MARCH),armv7l)
-ifneq ($(MARCH),i686)
-ifneq ($(HOSTOS),win)
-CFLAGS += -m64 -mtune=native
-endif
-endif
+# Raspberry Pi Build
+ifeq ($(MACHINE),Linux_aarch64)
+ifeq (64, $(shell getconf LONG_BIT))
+LSEARCH := -L../libs/Pi_64
+else
+LSEARCH := -L../libs/Pi_32
 endif
 endif
 

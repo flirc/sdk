@@ -102,8 +102,6 @@
 extern "C" {
 #endif
 
-extern FILE *logfds[];
-
 void __log(int level, const char *fmt, ...) __printf_check(2, 3);
 void set_log_level(int level);
 
