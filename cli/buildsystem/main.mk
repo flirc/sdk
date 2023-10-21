@@ -30,7 +30,11 @@ endif
 include $(TARGETMK)
 
 # Add all the libraries defined in config.mk to LDLIBS
+ifneq ($(HOSTOS), DARWIN)
 LDLIBS := -Wl,--start-group $(addprefix -l,$(LIBRARIES)) -Wl,--end-group
+else
+LDLIBS := $(addprefix -l,$(LIBRARIES))
+endif
 
 # Build Directory
 BUILDDIR := $(BUILDDIR)/$(TARGET)/$(CONFIG)
