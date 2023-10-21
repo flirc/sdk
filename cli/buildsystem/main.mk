@@ -69,7 +69,9 @@ LSEARCH := -L../libs/Pi_32
 endif
 endif
 
+ifneq ($(HOSTOS),LIBREELEC)
 LDFLAGS += -L/usr/local/lib
+endif
 
 # Build Directory
 BUILDDIR := $(BUILDDIR)/$(TARGET)/$(CONFIG)
