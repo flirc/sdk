@@ -43,10 +43,6 @@ $(error no TARGETMK defined)
 endif
 include $(TARGETMK)
 
-ifeq ($(HOSTOS),LIBREELEC)
-MACHINE := Linux_aarch64
-endif
-
 # Add all the libraries defined in config.mk to LDLIBS
 LDLIBS := $(addprefix -l,$(LIBRARIES))
 ifeq ($(HOSTOS), win)
