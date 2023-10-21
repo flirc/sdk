@@ -1,23 +1,9 @@
 include buildsystem/func.mk
+include buildsystem/cross.mk
 
 # Set default flags
 CPPFLAGS := -Iinclude -Isrc -I../libs/
 CFLAGS := -Wall -Werror 
-
-ifeq ($(HOSTOS),win)
-CC		:= i686-w64-mingw32.static-gcc
-CCP		:= i686-w64-mingw32.static-g++
-WINRES		:= i686-w64-mingw32.static-windres
-MAKENSIS	:= i686-w64-mingw32.static-makensis
-CXXFLAGS 	+= -D__HOST_WIN__
-CFLAGS		+= -D__HOST_WIN__
-LIBS_STATIC	+= hidapi usb-1.0
-LIBS_STATIC	+= hid setupapi
-LSEARCH		:= -L../libs/Win/
-
-# Fixes packing issue
-CFLAGS		+= -mno-ms-bitfields
-endif
 
 CXXFLAGS = $(CFLAGS)
 ASFLAGS :=
@@ -43,33 +29,8 @@ $(error no TARGETMK defined)
 endif
 include $(TARGETMK)
 
-ifeq ($(HOSTOS),LIBREELEC)
-MACHINE := Linux_aarch64
-endif
-
 # Add all the libraries defined in config.mk to LDLIBS
-LDLIBS := $(addprefix -l,$(LIBRARIES))
-ifeq ($(HOSTOS), win)
-LSEARCH := -L../libs/Win/
-LSEARCH += -L../../build/mxe/usr/i686-w64-mingw32.static/lib/
-endif
-
-# Add all the frameworks defined in config.mk to LDFLAGS (This is only for OSX)
-ifeq ($(HOSTOS),DARWIN)
-LSEARCH := -L../libs/$(MACHINE)/
-LDFLAGS += $(addprefix -framework ,$(FRAMEWORKS))
-endif
-
-# Raspberry Pi Build
-ifeq ($(MACHINE),Linux_aarch64)
-ifeq (64, $(shell getconf LONG_BIT))
-LSEARCH := -L../libs/Pi_64
-else
-LSEARCH := -L../libs/Pi_32
-endif
-endif
-
-LDFLAGS += -L/usr/local/lib
+LDLIBS := -Wl,--start-group $(addprefix -l,$(LIBRARIES)) -Wl,--end-group
 
 # Build Directory
 BUILDDIR := $(BUILDDIR)/$(TARGET)/$(CONFIG)

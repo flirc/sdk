@@ -17,13 +17,9 @@ export MACHINE := $(call USCORESUB,$(shell uname -sm))
 export CCNAME := $(call USCORESUB,$(notdir $(realpath $(shell which $(CC)))))
 export MARCH   := $(shell uname -m)
 
-ifeq ($(HOSTOS), win)
-CCNAME := mingw
-endif
-
 # Build Directory
 export BUILDDIR_ROOT := buildresults
-export BUILDDIR := $(BUILDDIR_ROOT)/$(MACHINE)/$(CCNAME)
+export BUILDDIR := $(BUILDDIR_ROOT)/$(MACHINE)/$(CCNAME)/$(HOSTOS)
 
 # Target Directory
 TARGETDIR := targets
@@ -44,12 +40,14 @@ help :
 	@echo "       make all"
 	@echo "       make clean"
 	@echo "other options:"
-	@echo "       ISHELL	 setting this to 1 enables interactive shell"
+	@echo "       ISHELL     setting this to 1 enables interactive shell"
 	@echo "                  support"
 	@echo "       VERBOSE    setting this to 1 enables verbose output"
 	@echo "       INSTALL    setting this to 1 runs the install script for"
 	@echo "                  each goal specified"
 	@echo "       ANALYZE    run static analysis (only works with clang)"
+	@echo "       HOSTOS     override compile target supported targets:"
+	@echo "                  WIN, LINUX, DARWIN, LIBREELEC"
 	@echo "targets:"
 	$(call PRINTLIST,$(TARGETS), * )
 

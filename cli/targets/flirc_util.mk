@@ -13,19 +13,11 @@ SOURCES :=	src/main.c \
 		src/cmds/ir_transmit.c \
 
 # Libraries
-LIBRARIES := flirc usb-1.0
+LIBRARIES  += flirc
 
 ifeq ($(ISHELL), 1)
 LIBRARIES += readline
 SOURCES   += lib/cmds_shell.c
-endif
-
-ifeq ($(HOSTOS),LINUX)
-LIBRARIES += hidapi-hidraw
-else ifeq ($(HOSTOS),win)
-LIBRARIES += hidapi ncurses
-else
-LIBRARIES += hidapi
 endif
 
 # Version
@@ -34,6 +26,7 @@ OPTIONS += SCMVERSION='"$(SCMVERSION)"'
 OPTIONS += SCMBRANCH='"$(SCMBRANCH)"'
 OPTIONS += SCMVER='"$(SCMVER)"'
 OPTIONS += SCMVERSION='"$(SCMVERSION)"'
+
 CPPFLAGS += -DBUILD_DATE='"$(shell date)"'
 
 # Release Config
@@ -48,15 +41,6 @@ endif
 ifeq ($(CONFIG),debug)
 # Options
 OPTIONS += MAX_LOGLEVEL=5 DEFAULT_LOGLEVEL=4
-# Flags
-CFLAGS += -O0 -g
-endif
-
-# Snow Config
-ifeq ($(CONFIG),snow)
-# Options
-OPTIONS += MAX_LOGLEVEL=5 DEFAULT_LOGLEVEL=4
-OPTIONS += THREADPOOLTESTCMD NETCONNECTIONTESTCMD
 # Flags
 CFLAGS += -O0 -g
 endif
