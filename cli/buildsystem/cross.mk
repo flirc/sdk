@@ -25,9 +25,9 @@ else ifeq ($(HOSTOS),LINUX)
     # Check if we are compiling for ARM/Pi
     ifeq ($(findstring aarch64,$(MACHINE)),aarch64)
         ifeq (64, $(shell getconf LONG_BIT))
-            LSEARCH := -L../libs/Pi_64
+            LSEARCH := -L../libs/Linux_aarch64
         else
-            LSEARCH := -L../libs/Pi_32
+            LSEARCH := -L../libs/Linux_arm
         endif
     else
         ifeq (64, $(shell getconf LONG_BIT))
@@ -43,9 +43,9 @@ else ifeq ($(HOSTOS),LIBREELEC)
     # Check if we are compiling for ARM/Pi
     ifeq ($(findstring aarch64,$(MACHINE)),aarch64)
         ifeq (64, $(shell getconf LONG_BIT))
-            LSEARCH := -L../libs/Pi_64
+            LSEARCH := -L../libs/Linux_aarch64
         else
-            LSEARCH := -L../libs/Pi_32
+            LSEARCH := -L../libs/Linux_arm
         endif
     else
         ifeq (64, $(shell getconf LONG_BIT))
