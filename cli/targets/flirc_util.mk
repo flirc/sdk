@@ -8,7 +8,6 @@ SOURCES :=	src/main.c \
 		lib/dict.c \
 		lib/cmds.c \
 		lib/cmds_script.c \
-		src/cmds/version.c \
 		src/cmds/flirc_cmds.c \
 		src/cmds/ir_transmit.c \
 
