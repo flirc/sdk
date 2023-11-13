@@ -38,6 +38,9 @@ extern "C" {
 #endif
 #define _DLL __declspec(dllexport)
 #else
+#ifdef _DLL
+#undef _DLL
+#endif
 #define _DLL
 #endif
 
