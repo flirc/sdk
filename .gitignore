@@ -6,3 +6,5 @@ cscope.*
 buildresults/*
 tags
 .DS_Store
+*.dSYM*
+*.swo
