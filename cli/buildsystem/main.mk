@@ -2,7 +2,7 @@ include buildsystem/func.mk
 include buildsystem/cross.mk
 
 # Set default flags
-CPPFLAGS := -Iinclude -Isrc -I../libs/
+CPPFLAGS := -Iinclude -Isrc -I../libs/include
 CFLAGS := -Wall -Werror 
 
 CXXFLAGS = $(CFLAGS)
