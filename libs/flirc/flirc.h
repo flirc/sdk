@@ -11,8 +11,8 @@
  * @brief   Flirc Library functions
  */
 
-#include <stddef.h>
 #include <stdint.h>
+#include <stddef.h>
 #include <ll.h>
 
 #ifndef I__FLIRC_H__
@@ -31,7 +31,6 @@ extern "C" {
 #define _DLL
 #endif
 
-#define LIBFLIRC_VERSION		"3.27.7"
 #define BOOTLOADER 			1
 #define FIRMWARE_FLIRC 			2
 #define FIRMWARE 			2 	/* compatibility */
@@ -47,6 +46,19 @@ struct fw_ver_hist {
 	/* pointer to list node */
 	ll_t node;
 };
+
+/**
+ * fl_lib_version() - Retrieves the version of the Flirc library.
+ *
+ * This function returns a string representing the current version of the
+ * Flirc library. It can be used to display the library version or for
+ * logging and diagnostic purposes.
+ *
+ * @return          - Constant character pointer to the string containing
+ *                    the library version. The memory for this string is 
+ *                    managed internally and should not be freed or modified.
+ */
+const char _DLL *fl_lib_version(void);
 
 /**
  * fl_open_device() searches for and opens flirc.
@@ -1204,6 +1216,17 @@ int _DLL fl_rb_settings_get(uint32_t *wake_en,
  */
 int _DLL fl_rb_wake_sig(uint16_t *buf, uint8_t len);
 
+/**
+ * fl_dev_flush() - Clears any pending data or states in the Flirc device.
+ *
+ * This function is used to ensure that the Flirc device is in a clean 
+ * state, by flushing or clearing any residual data or states. It is 
+ * typically used before starting a new operation to avoid conflicts 
+ * or unintended behavior.
+ *
+ * @return          - No return value.
+ */
+void fl_dev_flush(void);
 
 /** \ingroup desc
  * Erorr codes.
