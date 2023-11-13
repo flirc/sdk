@@ -317,10 +317,10 @@ CMDHANDLER(record_api)
 		return argc;
 	}
 
-
 	if (strtol(argv[0], NULL, 16) == 2) {
-		printf("Consumer Usage Table: 0x%X\n",
-				(int) strtol(argv[1], NULL, 16));
+		printf("Hit any remote button to be paired with Consumer Usage "
+				"Table, Key 0x%X\n",
+				(int)strtol(argv[1], NULL, 16));
 		if (fl_set_record_api_new(
 				strtol(argv[0], NULL, 16),
 				strtol(argv[1], NULL, 16) & 0xFF,
@@ -332,6 +332,10 @@ CMDHANDLER(record_api)
 	}
 
 	if (argc > 2) {
+		printf("Press any remote button to be paired with key: "
+				"%d %d %d\n", atoi(argv[0]), atoi(argv[1]),
+				atoi(argv[2]));
+
 		if (fl_set_record_api_new(atoi(argv[0]), atoi(argv[1]),
 					atoi(argv[2]), 100) == EOK) {
 			printf("  Succesfully recorded button\n\n");
