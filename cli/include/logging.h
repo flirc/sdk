@@ -56,46 +56,64 @@
 /* LOGERROR */
 #if MAX_LOGLEVEL >= LOGLEVEL_ERROR
 #define logerror(fmt, args...)		__log(LOGLEVEL_ERROR, \
-						"[E] %s(%d): " fmt, \
+						"[E] %s %s(%d): " fmt, \
+						__FILE__, \
 						__FUNCTION__, __LINE__, ## args)
+
+#define log_error(fmt, args...)		logerror(fmt, ## args)
+#define log_err(fmt, args...)		logerror(fmt, ## args)
 #else
 #define logerror(fmt, args...)
+#define log_error(fmt, args...)
+#define log_err(fmt, args...)
 #endif
 
 /* LOGWARN */
 #if MAX_LOGLEVEL >= LOGLEVEL_WARNING
 #define logwarn(fmt, args...)		__log(LOGLEVEL_WARNING, \
-						"[W] %s(%d): " fmt, \
+						"[W] %s %s(%d): " fmt, \
+						__FILE__, \
 						__FUNCTION__, __LINE__, ## args)
+#define log_warn(fmt, args...)		logwarn(fmt, ## args)
 #else
 #define logwarn(fmt, args...)
+#define log_warn(fmt, args...)
 #endif
 
 /* LOGINFO */
 #if MAX_LOGLEVEL >= LOGLEVEL_INFO
 #define loginfo(fmt, args...)		__log(LOGLEVEL_INFO, \
-						"[I] %s(%d): " fmt, \
+						"[I] %s %s(%d): " fmt, \
+						__FILE__, \
 						__FUNCTION__, __LINE__, ## args)
+#define log_info(fmt, args...)		loginfo(fmt, ## args)
 #else
 #define loginfo(fmt, args...)
+#define log_info(fmt, args...)
 #endif
 
 /* LOGDEBUG */
 #if MAX_LOGLEVEL >= LOGLEVEL_DEBUG
 #define logdebug(fmt, args...)		__log(LOGLEVEL_DEBUG, \
-						"[D] %s(%d): " fmt, \
+						"[D] %s %s(%d): " fmt, \
+						__FILE__, \
 						__FUNCTION__, __LINE__, ## args)
+#define log_debug(fmt, args...)		logdebug(fmt, ## args)
 #else
 #define logdebug(fmt, args...)
+#define log_debug(fmt, args...)
 #endif
 
 /* LOGVERBOSE */
 #if MAX_LOGLEVEL >= LOGLEVEL_VERBOSE
 #define logverbose(fmt, args...)	__log(LOGLEVEL_VERBOSE, \
-						"[V] %s(%d): " fmt, \
+						"[V] %s %s(%d): " fmt, \
+						__FILE__, \
 						__FUNCTION__, __LINE__, ## args)
+#define log_verbose(fmt, args...)	logverbose(fmt, ## args)
 #else
 #define logverbose(fmt, args...)
+#define log_verbose(fmt, args...)
 #endif
 
 #ifdef __cplusplus

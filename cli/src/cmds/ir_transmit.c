@@ -8,7 +8,7 @@
  * such unauthorized removal or alteration will be a violation of federal law.
  *
  * @file
- * @brief   Flirc command file
+ * @brief   Flirc command file for IR transmitter
  */
 
 #include <stdio.h>
@@ -87,7 +87,7 @@ static void decode_raw(const char *line, int ik, int repeats)
 	int i = 0;
 
 	if (line == NULL || !(strlen(line))) {
-		logerror("invalid line buffer, len = %d\n", (int)strlen(line));
+		log_err("invalid line buffer, len = %d\n", (int)strlen(line));
 		return;
 	}
 
@@ -104,7 +104,7 @@ static void decode_raw(const char *line, int ik, int repeats)
 	}
 
 	if (sendRaw(buf, len, ik, repeats) < 0) {
-		logerror("Error sending pattern\n");
+		log_err("Error sending pattern\n");
 	}
 }
 
@@ -118,7 +118,7 @@ CMDHANDLER(sendir)
 #if 0
 	/* make sure we are in a compatible version */
 	if (fl_version_compare(APPDATA->dev, 4, 7) < 0) {
-		logerror("Error: version >= 4.7.x required\n");
+		log_err("Error: version >= 4.7.x required\n");
 		return -1;
 	}
 #endif
@@ -155,7 +155,7 @@ CMDHANDLER(sendir)
 #if 0
 		/* make sure we are in a compatible version */
 		if (fl_version_compare(APPDATA->dev, 4, 8) < 0) {
-			logerror("Error: version >= 4.8.x required\n");
+			log_err("Error: version >= 4.8.x required\n");
 			return -1;
 		}
 #endif
@@ -212,7 +212,7 @@ CMDHANDLER(sendir)
 
 		const char *val = dict_str_for_key(opts, "csv");
 		if ((val == NULL) || (strlen(val) == 0)) {
-			logerror("must specify a pattern\n");
+			log_err("must specify a pattern\n");
 			return argc;
 		}
 
@@ -227,22 +227,22 @@ CMDHANDLER(sendir)
 		if (buf[0] == 0) {
 			/* we must have odd number of entries */
 			if (IS_ODD(buf_size)) {
-				logerror("Error: invalid length, not even\n");
+				log_err("Error: invalid length, not even\n");
 				return -1;
 			}
 		} else if (IS_EVEN(buf_size)) {
-				logerror("Error: invalid length, not odd\n");
+				log_err("Error: invalid length, not odd\n");
 				return -1;
 		}
 
 		if (buf_size < 3) {
-			logerror("Error: buffer can't be less than 4\n");
+			log_err("Error: buffer can't be less than 4\n");
 			return -1;
 		}
 
 		printf("Transmitting IR Pattern...");
 		if (fl_transmit_raw(buf, buf_size, ik_delay, repeat) < 0) {
-			logerror("Error: could not transmit data\n");
+			log_err("Error: could not transmit data\n");
 		}
 
 		printf("Done!\n");
