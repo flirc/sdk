@@ -37,6 +37,8 @@
 #define IS_EVEN(x)              (!(IS_ODD(x)))
 #endif
 
+#define ARRAY_SIZE(array)	(sizeof((array))/sizeof((array)[0]))
+
 void ex_program(int sig) __attribute__ ((noreturn));
 void ex_program(int sig)
 {
@@ -134,8 +136,8 @@ static void _listen(void)
 			printf("----------------\n");
 			ir_decode_packet(&p, &d);
 
-			printf("0x%08X - %s : %d\n",
-					d.scancode, d.desc, d.protocol);
+			printf("0x%08X - %s : %d : hash: 0x%08X\n",
+					d.scancode, d.desc, d.protocol, d.hash);
 			/* print the timing we received */
 			print_raw(&p);
 			/* the pronto version of what we received */
@@ -203,9 +205,92 @@ static void usage(void)
 	printf("ir listen\n");
 	printf("     - This will poll the device, decode, and print the results\n");
 	printf("ir transmit\n");
-	printf("     - This will demonstrate transmission of 3 protocols, RC6, NEC, and RC5\n");
+	printf("     - Specify Protocol and Scancode; NEC32 0x37511\n");
 	printf("ir retransmit\n");
 	printf("     - This will wait for a packet, decode, and retransmit the packet\n");
+
+}
+
+static void buf_to_irp(uint16_t *buf, uint8_t len, struct ir_packet *p)
+{
+	int i = 0;
+	int d = 0;
+
+	if (buf == NULL) {
+		printf("invalid buffer\n");
+		return;
+	}
+
+	/* if we lead with zero, toss it */
+	if (buf[0] == 0)
+		i++;
+
+	p->len = len-i;
+
+	while (i < len)
+		p->buf[d++] = buf[i++];
+}
+
+static void decode_raw(const char *line)
+{
+	uint16_t buf[256];
+	ssize_t len = 0;
+	int i = 0;
+
+	struct ir_prot d;
+	struct ir_packet p;
+
+	memset(buf, 0, sizeof(buf[0]) * ARRAY_SIZE(buf));
+
+	if (line == NULL || !(strlen(line))) {
+		printf("invalid line buffer, len = %lu\n", strlen(line));
+		return;
+	}
+
+	if (line[0] == '-' && line[0] == '+')
+		line++;
+
+	/* convert string to buf */
+	while (i < strlen(line)) {
+		buf[len++] = strtol(&line[i], NULL, 10);
+		while ((line[i] != ' ' && line[i] != ',' && i < strlen(line))) {
+			i++;
+		};
+
+		if (line[0] == '-' && line[0] == '+')
+			line++;
+		else
+			i += 2;
+	}
+
+	buf_to_irp(buf, len, &p);
+
+	print_raw(&p);
+
+	/* decode packet received */
+	ir_decode_packet(&p, &d);
+	printf("0x%08X - %s : %d\n", d.scancode, d.desc, d.protocol);
+	printf("%s\n", enum_to_str(d.protocol));
+	/* print the timing we received */
+	print_raw(&p);
+	/* the pronto version of what we received */
+	print_pronto(&d);
+	/* an idealized waveform based on protocol */
+	print_cleaned(&d);
+}
+
+static int fl_transmit_fake(uint16_t *buf, uint16_t len, uint16_t ik, uint8_t repeat)
+{
+	int i = 0;
+	while (repeat --) {	
+		for (i = 0; i < len; i++) {
+			IS_EVEN(i) ? printf("+") : printf("-");
+			printf("%d ", buf[i]);
+		}
+		printf("\n");
+		printf("-%d\n", ik*1000);
+	}
+	return 0;
 }
 
 int main(int argc, char *argv[])
@@ -215,7 +300,7 @@ int main(int argc, char *argv[])
 
 	/* Print the versions of our libraries for convenience */
 	printf("%-20s %-10s\n", "Lib Flirc Version: ", fl_lib_version());
-	printf("%-20s %-10s\n", "Lib IR Version: ", ir_lib_version());
+	printf("%-20s %-10s\n", "Lib IR Version: ",    ir_lib_version());
 
 	/**
 	 * open the alternate interface which has the ability to poll
@@ -223,32 +308,42 @@ int main(int argc, char *argv[])
 	 */
 	if (fl_open_device_alt(0x20A0, "flirc.tv") < 0) {
 		printf("Error: unable to open device\n");
-		return -1;
+		/**
+		 * We can't open the device, so let's fake print the output to
+		 * stdout.
+		 */
+		ir_register_tx(fl_transmit_fake);
+	} else {
+		/**
+		 * Only necessary if you want to transmit. Purpose of libir is to
+		 * support any transmitter.
+		 */
+		ir_register_tx(fl_transmit_raw);
 	}
-
-	/**
-	 * Only necessary if you want to transmit. Purpose of libir is to
-	 * support any transmitter.
-	 */
-	ir_register_tx(fl_transmit_raw);
 
 	/* check for argument */
 	if (argc > 1) {
 		if (strcmp(argv[1], "listen") == 0) {
 			_listen();
 		} else if (strcmp(argv[1], "transmit") == 0) {
-			printf("transmitting RC6\n");
-			ir_tx(RC_PROTO_RC6_0, 0xC, 3);
-			printf("transmitting NEC\n");
-			ir_tx(RC_PROTO_NEC, 0x12341, 4);
-			printf("transmitting RC5\n");
-			ir_tx(RC_PROTO_RC5, 0xD, 5);
+			if (argc < 3) {
+				printf("invalid arguments\n");
+				printf(" ir transmit NOKIA32 0x20C02606\n");
+				return 0;
+			}
+			enum rc_proto protocol = str_to_enum(argv[2]);
+			uint32_t scancode = strtol(argv[3], NULL, 16);
+			ir_tx(protocol, scancode, 10);
 			return 0;
 		} else if (strcmp(argv[1], "retransmit") == 0) {
 			retransmit();
 			return 0;
+		} else if (strcmp(argv[1], "decode") == 0) {
+			decode_raw(argv[2]);
+			return 0;
 		} else {
 			usage();
+			return 0;
 		}
 	}
 
