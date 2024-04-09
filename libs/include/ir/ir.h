@@ -1,14 +1,11 @@
 /**
- * COPYRIGHT 2023 Flirc, Inc. All rights reserved.
+ * COPYRIGHT 2024 Flirc, Inc. All rights reserved.
  *
  * This copyright notice is Copyright Management Information under 17 USC 1202
  * and is included to protect this work and deter copyright infringement.
  * Removal or alteration of this Copyright Management Information without
  * the express written permission of Flirc, Inc. is prohibited, and any
  * such unauthorized removal or alteration will be a violation of federal law.
- *
- * @file
- * @brief   temporary file, will be replaced
  */
 
 #ifndef I__IR_H
@@ -17,15 +14,15 @@
 #include <stdint.h>
 
 #ifndef MAX_EDGES
-#define MAX_EDGES			256
+#define MAX_EDGES	(256)
 #endif
 
 #ifndef MAX_DESC
-#define MAX_DESC			100
+#define MAX_DESC	(100)
 #endif
 
 #ifndef MAX_REP
-#define MAX_REP				30
+#define MAX_REP		(30)
 #endif
 
 #ifdef __cplusplus
@@ -45,6 +42,19 @@ extern "C" {
 #endif
 
 #ifndef I__FLIRC_H__
+/**
+ * struct ir_packet - This structure is used for holding the data of an IR
+ * packet. It includes the packet buffer, its length, and the time elapsed
+ * since the last packet.
+ *
+ * Because this library can be used standalone, we only define it if it is not
+ * being used in conjunction with libflirc since the same structure is used
+ * there.
+ *
+ * @buf:       An array of 256 16-bit integers serving as the packet buffer.
+ * @len:       The length of the IR packet data stored in the buffer.
+ * @elapsed:   The time elapsed since the last packet was received.
+ */
 struct ir_packet {
 	uint16_t buf[256];
 	uint16_t len;
@@ -85,6 +95,7 @@ struct ir_packet {
  */
 enum rc_proto {
 	RC_PROTO_UNKNOWN = 0,
+	RC_PROTO_INVALID,
 	RC_PROTO_OTHER,
 	RC_PROTO_RC5,
 	RC_PROTO_RC5X_20,
@@ -96,6 +107,7 @@ enum rc_proto {
 	RC_PROTO_NEC,
 	RC_PROTO_NECX,
 	RC_PROTO_NEC32,
+	RC_PROTO_NEC48,
 	RC_PROTO_SANYO,
 	RC_PROTO_MCIR2_KBD,
 	RC_PROTO_MCIR2_MSE,
@@ -113,11 +125,16 @@ enum rc_proto {
 	RC_PROTO_RCMM32,
 	RC_PROTO_ORTEK,
 	RC_PROTO_DENON,
+	RC_PROTO_DENONK,
 	RC_PROTO_FLIRC,
-	RC_PROTO_NOKIA,
+	RC_PROTO_NOKIA12,
+	RC_PROTO_NOKIA24,
+	RC_PROTO_NOKIA32,
 	RC_PROTO_TDC,
 	RC_PROTO_AMINO, /* max BIT_ULL */
 	RC_PROTO_NEC_APPLE,
+	RC_PROTO_NEC_REPEAT,
+	RC_PROTO_PANASONIC,
 };
 
 /**
@@ -171,7 +188,7 @@ struct ir_prot {
 	/* 32 Bit Scancode from remote */
 	uint32_t scancode;
 	/* 32 bit entire code extracted from remote (don't use this) */
-	uint32_t fullcode;
+	uint64_t fullcode;
 	/* 32 Bit Unique Hash */
 	uint32_t hash;
 	/* repeat detected = 1, 0 = no repeat */
@@ -201,79 +218,77 @@ struct ir_prot {
 void _DLL ir_enabled_protocols(void);
 
 /**
- * ir_decode_packetf() - Decodes an IR signal buffer into a meaningful command or data.
+ * ir_decode_packet() - Decodes an IR signal buffer into a command or data.
  *
- * Given a buffer of IR signal timings, this function attempts to decode and 
- * interpret the signal, translating it into a specific command or data format.
+ * This function takes an IR signal timing buffer and decodes it into a
+ * specific command or data format, providing an interpretation of the signal.
  *
- * @param *buf - Pointer to the buffer containing IR signal timings.
- * @param len  - Length of the IR signal data buffer.
- * @param p    - Pointer to a struct that will be populated
+ * @param *ir - Pointer to the buffer of IR signal timings.
+ * @param *p  - Pointer to a struct to be populated with decoded data.
  *
- * @return     - An integer representing the result of the decode operation. This 
- *               could be a command ID, error code, or other relevant value.
+ * @return    - rc_proto type. If the library could not decode the ir packet,
+ *            - RC_PROTO_UNKNOWN is returned.
  */
-int _DLL ir_decode_packet(struct ir_packet *ir, struct ir_prot *p);
+enum rc_proto _DLL ir_decode_packet(struct ir_packet *ir, struct ir_prot *p);
 
 /**
- * ir_decode_packetf() - Decodes an IR signal buffer into a meaningful command or data.
+ * ir_encode() - Encodes a scancode into an IR signal buffer.
  *
- * Given a buffer of IR signal timings, this function attempts to decode and 
- * interpret the signal, translating it into a specific command or data format.
+ * This function takes a scancode and protocol type, and encodes them into an
+ * IR signal format, storing the resultant data in a provided ir_packet struct.
  *
- * @param *buf - Pointer to the buffer containing IR signal timings.
- * @param len  - Length of the IR signal data buffer.
- * @param p    - Pointer to a struct that will be populated
+ * @param protocol - The type of remote control protocol to use for encoding.
+ * @param scancode - The scancode to be encoded into an IR signal.
+ * @param *ir      - Pointer to an ir_packet struct to store the encoded signal.
  *
- * @return     - An integer representing the result of the decode operation.
- * 		 This could be a command ID, error code, or other relevant
- * 		 value.
+ * @return         - An integer representing the result of the encode operation.
+ *                   This could be a command ID, error code, or other relevant
+ *                   value.
  */
-int _DLL ir_encode(enum rc_proto protocol, uint32_t scancode, struct ir_packet *ir);
+int _DLL ir_encode(enum rc_proto protocol,
+		uint32_t scancode, struct ir_packet *ir);
 
 /**
- * ir_tx() - Transmits an IR code based on the provided protocol and scancode.
+ * ir_tx() - Sends an IR code using the provided protocol and scancode.
  *
- * This function manages the transmission of an IR signal according to the 
- * given protocol and scancode. It defaults to a single transmission and can 
- * repeat the signal as specified. The function leverages 'ir_encode' to 
- * handle encoding and depends on a previously registered IR transmit 
- * callback for actual transmission. Special repeat frames, inherent to 
- * certain protocols, are also managed.
+ * This function manages the transmission of an IR signal based on the
+ * specified protocol and scancode. Default behavior is a single
+ * transmission, but can repeat as specified. It uses 'ir_encode' for
+ * encoding and requires a previously set IR transmit callback for
+ * transmission. Special repeat frames, inherent to certain protocols,
+ * are also handled.
  *
- * @param protocol   - The IR protocol used for the transmission.
- * @param scancode   - The scancode or value to be transmitted.
- * @param repeat     - Specifies the number of times the signal is repeated.
- *                     A value of 0 means default single transmission.
+ * @param protocol - The IR protocol for the transmission.
+ * @param scancode - The scancode or value to transmit.
+ * @param repeat   - Number of times the signal is repeated. 0 for a
+ *                   single transmission.
  *
- * @return           - Returns 0 on successful transmission. If the transmit 
- *                     callback hasn't been set, or any other error occurs, 
- *                     it returns -1.
+ * @return         - Returns 0 on successful transmission. If there's no
+ *                   transmit callback set, or any other error occurs, it
+ *                   returns -1.
  */
 int _DLL ir_tx(enum rc_proto protocol, uint32_t scancode, int repeat);
 
 /**
- * ir_register_tx() - Registers a callback function for transmitting IR protocols.
+ * ir_register_tx() - Register a callback for IR signal transmission.
  *
- * This function allows the user to set a custom callback to handle the
- * transmission of IR signals. The suggested callback to use is 'fl_transmit_raw'
- * found in the 'flirc.h' header, but users can set their own if needed.
+ * This function allows the user to register a custom callback for handling
+ * the transmission of IR signals. It's recommended to use the 'fl_transmit_raw'
+ * callback from 'flirc.h', but users can define their own if needed.
  *
- * @param cb         - A pointer to the callback function with the following signature:
- *                     int callback(uint16_t *buf, uint16_t len, uint16_t ik,
- *                                  uint8_t rep);
- *                     Where:
- *                     - buf: Points to the buffer containing IR signal data.
- *                     - len: The length of the IR signal data buffer.
- *                     - ik:  Inter-key delay. Time between end of one keypress and start 
- *                            of the next, if any.
- *                     - rep: Indicates if the key is being held (repeated).
+ * @param cb - Pointer to the callback function with the signature:
+ *             int callback(uint16_t *buf, uint16_t len, uint16_t ik,
+ *                          uint8_t rep);
+ *             Where:
+ *               - buf: Points to the buffer with the IR signal data.
+ *               - len: Length of the IR signal data buffer.
+ *               - ik:  Time between end of one keypress and start of the next.
+ *               - rep: Indicates if the key is held (repeated).
  *
- * @return           - Returns 0 if the callback registration is successful.
- *                     On error, an appropriate error code is returned.
+ * @return     - Returns 0 if successful. On error, returns an error code.
  */
-int _DLL ir_register_tx(int (*cb)(uint16_t *buf, uint16_t len, 
-                             uint16_t ik, uint8_t rep));
+int _DLL ir_register_tx(int (*cb)(uint16_t *buf, uint16_t len,
+                          uint16_t ik, uint8_t rep));
 
 #ifdef __cplusplus
 }
