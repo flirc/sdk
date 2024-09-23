@@ -1,14 +1,11 @@
 /**
- * COPYRIGHT 2023 Flirc, Inc. All rights reserved.
+ * COPYRIGHT 2024 Flirc, Inc. All rights reserved.
  *
  * This copyright notice is Copyright Management Information under 17 USC 1202
  * and is included to protect this work and deter copyright infringement.
  * Removal or alteration of this Copyright Management Information without
  * the express written permission of Flirc, Inc. is prohibited, and any
  * such unauthorized removal or alteration will be a violation of federal law.
- *
- * @file
- * @brief   Flirc Library functions
  */
 
 #include <stdio.h>
@@ -252,15 +249,16 @@ static void decode_raw(const char *line)
 
 	/* convert string to buf */
 	while (i < strlen(line)) {
-		buf[len++] = strtol(&line[i], NULL, 10);
-		while ((line[i] != ' ' && line[i] != ',' && i < strlen(line))) {
+		while (i < strlen(line) && (line[i] == '+' || line[i] == '-'))
 			i++;
-		};
+		
+		buf[len++] = strtol(&line[i], NULL, 10);
+		
+		while (i < strlen(line) && line[i] != ',' && line[i] != ' ')
+			i++;
 
-		if (line[0] == '-' && line[0] == '+')
-			line++;
-		else
-			i += 2;
+		/* Move to the next character after the delimiter */
+		i++;
 	}
 
 	buf_to_irp(buf, len, &p);

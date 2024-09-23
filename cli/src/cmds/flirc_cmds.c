@@ -23,7 +23,7 @@
 
 static inline int enough_args(int arguments, int amount_expected)
 {
-	if (!((arguments) >= amount_expected)) {
+	if (arguments < amount_expected) {
 		logerror("Not Enough Arguments\n");
 		return -1;
 	}
@@ -162,7 +162,7 @@ APPCMD(record, &record,
 		"valid commands:\n"
 		"  a-z <any single letter>\n"
 		"  return, enter, escape, backspace, delete, tab, \n"
-		"  space, F[1-12], printscreen, scroll, pause, insert, \n"
+		"  space, F[1-12], print_screen, scroll, pause, insert, \n"
 		"  home, pageup, pagedown, end, right, left, down, up, \n"
 		"Media Keys: \n"
 		"  wake, eject, vol_up, vol_down, mute, play/pause, stop \n"
@@ -170,7 +170,7 @@ APPCMD(record, &record,
 		"System Keys: \n"
 		"  suspend\n"
 		"Other: \n"
-		"  toggle [enbables/disables] flirc\n",
+		"  toggle [enables/disables] flirc\n",
 		NULL);
 
 CMDHANDLER(record_lp)
@@ -301,7 +301,7 @@ APPCMD(record_macro, &record_macro,
 "  flirc_util record_macro o\n"
 "  a-z <any single letter>\n"
 "  return, enter, escape, backspace, delete, tab, \n"
-"  space, F[1-12], printscreen, scroll, pause, insert, \n"
+"  space, F[1-12], print_screen, scroll, pause, insert, \n"
 "  home, pageup, pagedown, end, right, left, down, up, \n"
 "Media Keys: \n"
 "  wake, eject, vol_up, vol_down, mute, play/pause, stop \n"
@@ -378,12 +378,31 @@ APPCMD(record_api, &record_api,
 
 CMDHANDLER(delete_index)
 {
+	int index;
+
 	if (enough_args(argc, 1) < 0) {
 		run_cmd_line("help delete_index", NULL);
 		return argc;
 	}
 
-	fl_delete_index(atoi(argv[0]));
+	index = atoi(argv[0]);
+
+	printf("Before Index Deletion\n");
+
+	if (fl_display_config() < 0)
+		log_err("failed to load configuration\n");
+
+	fl_delete_index(index);
+
+	fflush(stdout);
+	printf("\n\n");
+
+	printf("After Index Deletion\n");
+
+	if (fl_display_config() < 0)
+		log_err("failed to save configuration\n");
+
+	printf("\n");
 
 	return 1;
 }
@@ -552,7 +571,12 @@ CMDHANDLER(dfu)
 			printf("[DEVICE]        Failed\n");
 			return 1;
 		}
+	} else if (strcmp(argv[0], "flag") == 0) {
+		printf("clearing boot flag\n");
+		fl_set_boot_flag();
+		return 1;
 	} else {
+		printf("%s\n", argv[0]);
 		printf("Error: invalid dfu option\n");
 		run_cmd_line("help dfu", NULL);
 		return 1;

@@ -135,6 +135,7 @@ enum rc_proto {
 	RC_PROTO_NEC_APPLE,
 	RC_PROTO_NEC_REPEAT,
 	RC_PROTO_PANASONIC,
+	RC_PROTO_GAP,
 };
 
 /**

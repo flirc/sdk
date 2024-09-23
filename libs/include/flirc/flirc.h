@@ -6,14 +6,14 @@
  * Removal or alteration of this Copyright Management Information without
  * the express written permission of Flirc, Inc. is prohibited, and any
  * such unauthorized removal or alteration will be a violation of federal law.
- *
- * @file
- * @brief   Flirc Library functions
  */
 
 #include <stdint.h>
 #include <stddef.h>
+
+#ifdef FL_VERSION_HISTORY
 #include <ll.h>
+#endif
 
 #ifndef I__FLIRC_H__
 #define I__FLIRC_H__
@@ -44,6 +44,7 @@ extern "C" {
 #define FIRMWARE_FLIRC_AMAZON		3
 #define MAX_TIMEOUT			100
 
+#ifdef FL_VERSION_HISTORY
 struct fw_ver_hist {
 	/* verison string */
 	const char *v;
@@ -52,6 +53,7 @@ struct fw_ver_hist {
 	/* pointer to list node */
 	ll_t node;
 };
+#endif
 
 /**
  * fl_lib_version() - Retrieves the version of the Flirc library.
@@ -1013,11 +1015,12 @@ int fl_delete_index(int index);
 void fl_libusb_logging(int enable);
 
 /**
- * fl_log() get usb event log
+ * fl_log() get usb event log. This function returns the number of characters
+ * placed in the passed buf
  *
  * @param buf - empty buf pointer to be filled. Min of 1024
  *
- * @return EOK           - Operation successful.
+ * @return EOK           - Operation successful, but no bytes left
  * @return -EINVAL       - Invalid value
  * @return -ENODEV       - Flirc not present
  * @return -EWRONGDEV    - Unsupported, device in bootloader
